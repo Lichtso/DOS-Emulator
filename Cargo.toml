@@ -1,0 +1,9 @@
+[package]
+name = "DOS-Emulator"
+version = "0.1.0"
+authors = ["Alexander Meißner <AlexanderMeissner@gmx.net>"]
+edition = "2018"
+
+[dependencies]
+strum = "0.17.1"
+strum_macros = "0.17.1"
