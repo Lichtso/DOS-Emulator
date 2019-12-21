@@ -5,8 +5,38 @@ pub fn read_from_buffer_u32(buffer: &[u8]) -> u32 {
     ((buffer[3] as u32)<<24)+((buffer[2] as u32)<<16)+((buffer[1] as u32)<<8)+(buffer[0] as u32)
 }
 
+pub fn write_to_buffer_u32(buffer: &mut [u8], value: u32) {
+    buffer[3] = (value>>24) as u8;
+    buffer[2] = (value>>16) as u8;
+    buffer[1] = (value>>8) as u8;
+    buffer[0] = value as u8;
+}
+
 pub fn read_from_buffer_u16(buffer: &[u8]) -> u16 {
     ((buffer[1] as u16)<<8)+(buffer[0] as u16)
+}
+
+pub fn write_to_buffer_u16(buffer: &mut [u8], value: u16) {
+    buffer[1] = (value>>8) as u8;
+    buffer[0] = value as u8;
+}
+
+pub fn write_low_byte_of_u16(dst: &mut u16, src: u8) {
+    *dst &= 0xFF00;
+    *dst |= src as u16;
+}
+
+pub fn write_high_byte_of_u16(dst: &mut u16, src: u8) {
+    *dst &= 0x00FF;
+    *dst |= (src as u16)<<8;
+}
+
+pub fn lsb_mask(length: u32) -> u32 {
+    u32::max_value()>>(32-length)
+}
+
+pub fn msb_mask(length: u32) -> u32 {
+    u32::max_value()<<(32-length)
 }
 
 pub fn read_bytes<R>(stream: &mut R, length: u8, buffer: &mut[u8], offset: &mut u8, value: &mut u32) -> io::Result<()> where R: Read {
