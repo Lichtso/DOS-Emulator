@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 strum = "0.17.1"
 strum_macros = "0.17.1"
+chrono = "0.4.10"

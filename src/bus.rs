@@ -1,13 +1,15 @@
 pub struct BUS {
     rom: [u8; 4],
-    pub ram: Vec<u8>
+    pub ram: Vec<u8>,
+    dos: crate::dos::DiskOperatingSystem
 }
 
 impl BUS {
     pub fn new() -> Self {
         let mut bus = Self {
             rom: [0, 0, 0, 0],
-            ram: Vec::with_capacity(0xA0000)
+            ram: Vec::with_capacity(0xA0000),
+            dos: crate::dos::DiskOperatingSystem::new()
         };
         bus.ram.resize(bus.ram.capacity(), 0);
         bus
