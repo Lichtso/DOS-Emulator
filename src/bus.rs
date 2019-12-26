@@ -1,7 +1,7 @@
 pub struct BUS {
     rom: [u8; 4],
     pub ram: Vec<u8>,
-    dos: crate::dos::DiskOperatingSystem
+    pub dos: crate::dos::DiskOperatingSystem
 }
 
 impl BUS {
