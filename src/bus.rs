@@ -1,7 +1,25 @@
+use chrono::prelude::*;
+use serde::Deserialize;
+
+
+
+#[derive(Deserialize)]
+pub struct Config {
+    pub timing: Timing
+}
+
+#[derive(Deserialize)]
+pub struct Timing {
+    pub cpu_frequency: f64,
+    pub compensation_frequency: f64,
+    pub window_update_frequency: f64
+}
+
 pub struct BUS {
     rom: [u8; 4],
     pub ram: Vec<u8>,
-    pub dos: crate::dos::DiskOperatingSystem
+    pub dos: crate::dos::DiskOperatingSystem,
+    pub config: Config
 }
 
 impl BUS {
@@ -9,7 +27,10 @@ impl BUS {
         let mut bus = Self {
             rom: [0, 0, 0, 0],
             ram: Vec::with_capacity(0xA0000),
-            dos: crate::dos::DiskOperatingSystem::new()
+            dos: crate::dos::DiskOperatingSystem::new(),
+            config: Config {
+                timing: unsafe { std::mem::zeroed() }
+            }
         };
         bus.ram.resize(bus.ram.capacity(), 0);
         bus
@@ -54,7 +75,30 @@ impl BUS {
     }
 
     pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, interrupt: u8) -> bool {
-        false
+        match interrupt {
+            0x1A => match cpu.get_register(crate::machinecode::Operand::AX)>>8 {
+                0x00 => {
+                    let now = chrono::Local::now();
+                    let time = ((now.hour()*3600+now.minute()*60+now.second()) as u64)*1573040/86400;
+                    cpu.set_register(crate::machinecode::Operand::CX, (time>>16) as u16);
+                    cpu.set_register(crate::machinecode::Operand::BX, time as u16);
+                    println!("Clock ({}): Get System Time", cpu.cycle_counter);
+                    true
+                },
+                _ => false
+            },
+            0x20 => {
+                println!("DOS ({}): Exit", cpu.cycle_counter);
+                std::process::exit(0);
+            },
+            0x21 => {
+                self.dos.handle_interrupt(cpu, &mut self.ram);
+                true
+            },
+            _ => {
+                panic!("BUS ({}): Unsupported interrupt={:#02X} AX={:04X} ip/pc={:04X}:{:04X}", cpu.cycle_counter, interrupt, cpu.get_register(crate::machinecode::Operand::AX), cpu.get_register(crate::machinecode::Operand::CS), cpu.instruction.position-cpu.instruction.length as u16);
+            }
+        }
     }
 
     pub fn tick(&mut self, cpu: &mut crate::cpu::CPU) {
