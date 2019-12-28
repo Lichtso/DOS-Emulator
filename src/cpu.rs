@@ -403,7 +403,10 @@ impl CPU {
     pub fn execute_instruction(&mut self, bus: &mut crate::bus::BUS) {
         bus.tick(self);
         if self.get_flag(Flag::Interrupt) {
-            // TODO
+            let pending_interrupt = bus.pic.get_interrupt_to_handle();
+            if pending_interrupt > 0 {
+                self.invoke_interrupt_handler(bus, pending_interrupt);
+            }
         }
         if self.get_flag(Flag::Trap) {
             self.software_interrupt(bus, 1);

@@ -18,6 +18,7 @@ pub struct Timing {
 pub struct BUS {
     rom: [u8; 4],
     pub ram: Vec<u8>,
+    pub pic: crate::pic::ProgrammableInterruptController,
     pub dos: crate::dos::DiskOperatingSystem,
     pub config: Config
 }
@@ -27,6 +28,7 @@ impl BUS {
         let mut bus = Self {
             rom: [0, 0, 0, 0],
             ram: Vec::with_capacity(0xA0000),
+            pic: crate::pic::ProgrammableInterruptController::new(),
             dos: crate::dos::DiskOperatingSystem::new(),
             config: Config {
                 timing: unsafe { std::mem::zeroed() }
@@ -67,11 +69,22 @@ impl BUS {
     }
 
     pub fn read_from_port(&mut self, cpu: &mut crate::cpu::CPU, address: u16) -> u8 {
-        0
+        match address {
+            0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.read_from_port(cpu.cycle_counter, address),
+            _ => {
+                println!("BUS ({}): Unsupported port read address={:04X}", cpu.cycle_counter, address);
+                0
+            }
+        }
     }
 
     pub fn write_to_port(&mut self, cpu: &mut crate::cpu::CPU, address: u16, value: u8) {
-
+        match address {
+            0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.write_to_port(cpu.cycle_counter, address, value),
+            _ => {
+                println!("BUS ({}): Unsupported port write address={:04X} value={:02X}", cpu.cycle_counter, address, value);
+            }
+        }
     }
 
     pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, interrupt: u8) -> bool {
@@ -102,6 +115,6 @@ impl BUS {
     }
 
     pub fn tick(&mut self, cpu: &mut crate::cpu::CPU) {
-
+        
     }
 }
