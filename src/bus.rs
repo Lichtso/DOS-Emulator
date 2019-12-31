@@ -3,6 +3,81 @@ use serde::Deserialize;
 
 
 
+#[allow(dead_code)]
+#[derive(Copy, Clone, PartialEq, Eq, Display)]
+pub enum HandlerScheduleEntryKind {
+    ProgrammableIntervalTimerChannel0 = 0,
+    ProgrammableIntervalTimerChannel1 = 1,
+    ProgrammableIntervalTimerChannel2 = 2,
+    None
+}
+
+impl From<usize> for HandlerScheduleEntryKind {
+    fn from(value: usize) -> Self {
+        unsafe { std::mem::transmute::<u8, Self>(value as u8) }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct HandlerScheduleEntry {
+    pub kind: HandlerScheduleEntryKind,
+    pub trigger_at_cycle: u64
+}
+
+impl PartialOrd for HandlerScheduleEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(other.trigger_at_cycle.cmp(&self.trigger_at_cycle))
+    }
+}
+
+impl Ord for HandlerScheduleEntry {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        other.trigger_at_cycle.cmp(&self.trigger_at_cycle)
+    }
+}
+
+pub struct HandlerSchedule {
+    slots: [HandlerScheduleEntry; 4],
+    next_index: usize,
+    pub next_trigger_cycle: u64
+}
+
+impl HandlerSchedule {
+    pub fn new() -> Self {
+        Self {
+            slots: [HandlerScheduleEntry{kind: HandlerScheduleEntryKind::None, trigger_at_cycle: 0}; 4],
+            next_index: 0,
+            next_trigger_cycle: u64::max_value(),
+        }
+    }
+
+    fn update_next_trigger_cycle(&mut self) {
+        self.next_trigger_cycle = u64::max_value();
+        for index in 0..self.slots.len() {
+            if self.slots[index].kind != HandlerScheduleEntryKind::None && self.slots[index].trigger_at_cycle < self.next_trigger_cycle {
+                self.next_index = index;
+                self.next_trigger_cycle = self.slots[index].trigger_at_cycle;
+            }
+        }
+    }
+
+    pub fn schedule_handler(&mut self, scheduled_handler: HandlerScheduleEntry) {
+        self.slots[scheduled_handler.kind as usize] = scheduled_handler;
+        self.update_next_trigger_cycle();
+    }
+
+    pub fn cancel_handler(&mut self, scheduled_handler_kind: HandlerScheduleEntryKind) {
+        self.slots[scheduled_handler_kind as usize].kind = HandlerScheduleEntryKind::None;
+        self.update_next_trigger_cycle();
+    }
+
+    pub fn get_next_to_handle(&mut self) -> HandlerScheduleEntryKind {
+        let kind = self.slots[self.next_index].kind;
+        self.cancel_handler(HandlerScheduleEntryKind::from(self.next_index));
+        kind
+    }
+}
+
 #[derive(Deserialize)]
 pub struct Config {
     pub timing: Timing
@@ -18,8 +93,10 @@ pub struct Timing {
 pub struct BUS {
     rom: [u8; 4],
     pub ram: Vec<u8>,
+    pub pit: crate::pit::ProgrammableIntervalTimer,
     pub pic: crate::pic::ProgrammableInterruptController,
     pub dos: crate::dos::DiskOperatingSystem,
+    pub handler_schedule: HandlerSchedule,
     pub config: Config
 }
 
@@ -28,8 +105,10 @@ impl BUS {
         let mut bus = Self {
             rom: [0, 0, 0, 0],
             ram: Vec::with_capacity(0xA0000),
+            pit: crate::pit::ProgrammableIntervalTimer::new(),
             pic: crate::pic::ProgrammableInterruptController::new(),
             dos: crate::dos::DiskOperatingSystem::new(),
+            handler_schedule: HandlerSchedule::new(),
             config: Config {
                 timing: unsafe { std::mem::zeroed() }
             }
@@ -70,6 +149,7 @@ impl BUS {
 
     pub fn read_from_port(&mut self, cpu: &mut crate::cpu::CPU, address: u16) -> u8 {
         match address {
+            0x0040..=0x0047 | 0x0061 => self.pit.read_from_port(cpu.cycle_counter, address),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.read_from_port(cpu.cycle_counter, address),
             _ => {
                 println!("BUS ({}): Unsupported port read address={:04X}", cpu.cycle_counter, address);
@@ -80,6 +160,7 @@ impl BUS {
 
     pub fn write_to_port(&mut self, cpu: &mut crate::cpu::CPU, address: u16, value: u8) {
         match address {
+            0x0040..=0x0047 | 0x0061 => self.pit.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, address, value),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.write_to_port(cpu.cycle_counter, address, value),
             _ => {
                 println!("BUS ({}): Unsupported port write address={:04X} value={:02X}", cpu.cycle_counter, address, value);
@@ -115,6 +196,15 @@ impl BUS {
     }
 
     pub fn tick(&mut self, cpu: &mut crate::cpu::CPU) {
-        
+        if self.handler_schedule.next_trigger_cycle > cpu.cycle_counter {
+            return;
+        }
+        let kind = self.handler_schedule.get_next_to_handle();
+        match kind {
+            HandlerScheduleEntryKind::ProgrammableIntervalTimerChannel0 | HandlerScheduleEntryKind::ProgrammableIntervalTimerChannel1 | HandlerScheduleEntryKind::ProgrammableIntervalTimerChannel2 => {
+                self.pit.scheduled_handler(cpu, &mut self.pic, &mut self.handler_schedule, kind as usize);
+            },
+            _ => unreachable!()
+        };
     }
 }
