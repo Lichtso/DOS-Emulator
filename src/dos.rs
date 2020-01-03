@@ -227,6 +227,8 @@ impl DiskOperatingSystem {
             let environment_address = crate::bus::BUS::physical_address(psp.environment_segment, 0);
             ram[environment_address..environment_address+environment_data.len()].copy_from_slice(environment_data);
         }
+        // Setup BIOS
+        crate::bios::BIOS::from_ram(ram).setup();
         // Setup Interrupt Vector
         let interrupt_vector = unsafe { crate::bit_utils::transmute_slice_mut::<u8, u32>(&mut ram[0..]) };
         interrupt_vector[8] = 0xF000FEA5;
@@ -265,6 +267,17 @@ impl DiskOperatingSystem {
             0x00 => { // Exit
                 println!("DOS ({}): Exit", cpu.cycle_counter);
                 std::process::exit(0);
+            },
+            0x07 => { // Direct Character Input (No Echo)
+                let bios = crate::bios::BIOS::from_ram(ram);
+                if self.keyboard_spill != 0 {
+                    cpu.set_register(Operand::AL, self.keyboard_spill as u16);
+                    self.keyboard_spill = 0;
+                } else {
+                    let key_code = bios.keyboard_buffer_pop().unwrap_or(0);
+                    cpu.set_register(Operand::AL, key_code&0xFF);
+                    self.keyboard_spill = if key_code == 0 || key_code&0xFF != 0 { 0 } else { (key_code>>8) as u8 };
+                }
             },
             0x1A => { // Set DTA address
                 self.dta_address = ((cpu.get_register(Operand::DS) as u32)<<16)+(cpu.get_register(Operand::DX) as u32);

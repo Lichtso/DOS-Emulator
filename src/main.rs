@@ -12,8 +12,10 @@ mod disassembler;
 mod bus;
 mod cpu;
 mod dos;
+mod bios;
 mod pic;
 mod pit;
+mod ps2_controller;
 
 fn main() {
     let matches = clap::App::new("DOS Emulator")

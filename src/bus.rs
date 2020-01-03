@@ -9,6 +9,7 @@ pub enum HandlerScheduleEntryKind {
     ProgrammableIntervalTimerChannel0 = 0,
     ProgrammableIntervalTimerChannel1 = 1,
     ProgrammableIntervalTimerChannel2 = 2,
+    PS2Controller = 3,
     None
 }
 
@@ -95,6 +96,7 @@ pub struct BUS {
     pub ram: Vec<u8>,
     pub pit: crate::pit::ProgrammableIntervalTimer,
     pub pic: crate::pic::ProgrammableInterruptController,
+    pub ps2_controller: crate::ps2_controller::PS2Controller,
     pub dos: crate::dos::DiskOperatingSystem,
     pub handler_schedule: HandlerSchedule,
     pub config: Config
@@ -107,6 +109,7 @@ impl BUS {
             ram: Vec::with_capacity(0xA0000),
             pit: crate::pit::ProgrammableIntervalTimer::new(),
             pic: crate::pic::ProgrammableInterruptController::new(),
+            ps2_controller: crate::ps2_controller::PS2Controller::new(),
             dos: crate::dos::DiskOperatingSystem::new(),
             handler_schedule: HandlerSchedule::new(),
             config: Config {
@@ -151,6 +154,7 @@ impl BUS {
         match address {
             0x0040..=0x0047 | 0x0061 => self.pit.read_from_port(cpu.cycle_counter, address),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.read_from_port(cpu.cycle_counter, address),
+            0x0060 | 0x0064 => self.ps2_controller.read_from_port(cpu.cycle_counter, address),
             _ => {
                 println!("BUS ({}): Unsupported port read address={:04X}", cpu.cycle_counter, address);
                 0
@@ -162,6 +166,7 @@ impl BUS {
         match address {
             0x0040..=0x0047 | 0x0061 => self.pit.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, address, value),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.write_to_port(cpu.cycle_counter, address, value),
+            0x0060 | 0x0064 => self.ps2_controller.write_to_port(cpu.cycle_counter, address, value),
             _ => {
                 println!("BUS ({}): Unsupported port write address={:04X} value={:02X}", cpu.cycle_counter, address, value);
             }
@@ -170,6 +175,10 @@ impl BUS {
 
     pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, interrupt: u8) -> bool {
         match interrupt {
+            0x11 | 0x33 => {
+                crate::bios::BIOS::from_ram(&mut self.ram).handle_interrupt(cpu, interrupt);
+                true
+            },
             0x1A => match cpu.get_register(crate::machinecode::Operand::AX)>>8 {
                 0x00 => {
                     let now = chrono::Local::now();
@@ -203,6 +212,9 @@ impl BUS {
         match kind {
             HandlerScheduleEntryKind::ProgrammableIntervalTimerChannel0 | HandlerScheduleEntryKind::ProgrammableIntervalTimerChannel1 | HandlerScheduleEntryKind::ProgrammableIntervalTimerChannel2 => {
                 self.pit.scheduled_handler(cpu, &mut self.pic, &mut self.handler_schedule, kind as usize);
+            },
+            HandlerScheduleEntryKind::PS2Controller => {
+                self.ps2_controller.pop_data(cpu, &mut self.pic, &mut self.handler_schedule).unwrap();
             },
             _ => unreachable!()
         };
