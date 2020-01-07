@@ -1,3 +1,5 @@
+#![feature(ptr_offset_from)]
+
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
@@ -16,6 +18,7 @@ mod bios;
 mod pic;
 mod pit;
 mod ps2_controller;
+mod vga;
 
 fn main() {
     let matches = clap::App::new("DOS Emulator")

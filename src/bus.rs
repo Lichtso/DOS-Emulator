@@ -97,6 +97,7 @@ pub struct BUS {
     pub pit: crate::pit::ProgrammableIntervalTimer,
     pub pic: crate::pic::ProgrammableInterruptController,
     pub ps2_controller: crate::ps2_controller::PS2Controller,
+    pub vga: crate::vga::VideoGraphicsArray,
     pub dos: crate::dos::DiskOperatingSystem,
     pub handler_schedule: HandlerSchedule,
     pub config: Config
@@ -110,6 +111,7 @@ impl BUS {
             pit: crate::pit::ProgrammableIntervalTimer::new(),
             pic: crate::pic::ProgrammableInterruptController::new(),
             ps2_controller: crate::ps2_controller::PS2Controller::new(),
+            vga: crate::vga::VideoGraphicsArray::new(),
             dos: crate::dos::DiskOperatingSystem::new(),
             handler_schedule: HandlerSchedule::new(),
             config: Config {
@@ -127,26 +129,45 @@ impl BUS {
     pub fn get_memory(&mut self, _cpu: &mut crate::cpu::CPU, address: usize) -> *mut u8 {
         if address < self.ram.capacity() {
             &mut self.ram[address]
+        } else if address-self.vga.vram_mapping.0 < self.vga.vram_mapping.1 {
+            &mut self.vga.vram[address-self.vga.vram_mapping.0]
         } else {
             &mut self.rom[0]
         }
     }
 
     pub fn read_from_memory(&mut self, cpu: &mut crate::cpu::CPU, src: *const u8, data_width: u8) -> u32 {
-        match data_width {
-            8 => unsafe { *src as u32 },
-            16 => unsafe { *(src as *const u16) as u32 },
-            32 => unsafe { *(src as *const u32) },
-            _ => 0
+        let vram_offset = unsafe { src.offset_from(&self.vga.vram[0]) };
+        if vram_offset >= 0 && vram_offset < self.vga.vram.capacity() as isize {
+            let mut value = self.vga.read_from_memory(cpu.cycle_counter, vram_offset as usize) as u32;
+            if data_width == 16 {
+                value |= (self.vga.read_from_memory(cpu.cycle_counter, (vram_offset as usize)+1) as u32)<<8;
+            }
+            value
+        } else {
+            match data_width {
+                8 => unsafe { *src as u32 },
+                16 => unsafe { *(src as *const u16) as u32 },
+                32 => unsafe { *(src as *const u32) },
+                _ => 0
+            }
         }
     }
 
     pub fn write_to_memory(&mut self, cpu: &mut crate::cpu::CPU, dst: *mut u8, data_width: u8, value: u32) {
-        match data_width {
-            8 => unsafe { *dst = value as u8; },
-            16 => unsafe { *(dst as *mut u16) = value as u16; },
-            32 => unsafe { *(dst as *mut u32) = value; },
-            _ => { }
+        let vram_offset = unsafe { dst.offset_from(&self.vga.vram[0]) };
+        if vram_offset >= 0 && vram_offset < self.vga.vram.capacity() as isize {
+            self.vga.write_to_memory(cpu.cycle_counter, vram_offset as usize, value as u8);
+            if data_width == 16 {
+                self.vga.write_to_memory(cpu.cycle_counter, (vram_offset as usize)+1, (value>>8) as u8);
+            }
+        } else {
+            match data_width {
+                8 => unsafe { *dst = value as u8; },
+                16 => unsafe { *(dst as *mut u16) = value as u16; },
+                32 => unsafe { *(dst as *mut u32) = value; },
+                _ => { }
+            }
         }
     }
 
@@ -155,6 +176,7 @@ impl BUS {
             0x0040..=0x0047 | 0x0061 => self.pit.read_from_port(cpu.cycle_counter, address),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.read_from_port(cpu.cycle_counter, address),
             0x0060 | 0x0064 => self.ps2_controller.read_from_port(cpu.cycle_counter, address),
+            0x03B0..=0x03DF => self.vga.read_from_port(cpu.cycle_counter, address),
             _ => {
                 println!("BUS ({}): Unsupported port read address={:04X}", cpu.cycle_counter, address);
                 0
@@ -167,6 +189,7 @@ impl BUS {
             0x0040..=0x0047 | 0x0061 => self.pit.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, address, value),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.write_to_port(cpu.cycle_counter, address, value),
             0x0060 | 0x0064 => self.ps2_controller.write_to_port(cpu.cycle_counter, address, value),
+            0x03B0..=0x03DF => self.vga.write_to_port(cpu.cycle_counter, address, value),
             _ => {
                 println!("BUS ({}): Unsupported port write address={:04X} value={:02X}", cpu.cycle_counter, address, value);
             }
@@ -175,8 +198,8 @@ impl BUS {
 
     pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, interrupt: u8) -> bool {
         match interrupt {
-            0x11 | 0x33 => {
-                crate::bios::BIOS::from_ram(&mut self.ram).handle_interrupt(cpu, interrupt);
+            0x10 | 0x11 | 0x16 | 0x33 => {
+                crate::bios::BIOS::from_ram(&mut self.ram).handle_interrupt(cpu, &mut self.vga, interrupt);
                 true
             },
             0x1A => match cpu.get_register(crate::machinecode::Operand::AX)>>8 {

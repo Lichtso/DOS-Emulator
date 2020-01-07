@@ -262,12 +262,63 @@ impl BIOS {
         Some(key_code)
     }
 
-    pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, interrupt: u8) {
+    pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, vga: &mut crate::vga::VideoGraphicsArray, interrupt: u8) {
         match interrupt {
+            0x10 => {
+                let command = cpu.get_register(Operand::AH) as u8;
+                let argument = cpu.get_register(Operand::AL) as u8;
+                match command {
+                    0x00 => {
+                        self.video_mode = argument;
+                        match argument {
+                            0x10 => {
+                                vga.write_to_port(cpu.cycle_counter, 0x3CE, 0x06);
+                                vga.write_to_port(cpu.cycle_counter, 0x3CF, 0x01);
+                                vga.width = 640;
+                                vga.height = 350;
+                                vga.video_mode_dirty = true;
+                            },
+                            _ => {}
+                        }
+                        println!("BIOS ({}): Set video mode={:04X} width={} height={} vram_begin={:05X} vram_len={:05X}", cpu.cycle_counter, argument, vga.width, vga.height, vga.vram_mapping.0, vga.vram_mapping.1);
+                    },
+                    0x0F => {
+                        /* TODO
+                        cpu.set_register(crate::machinecode::Operand::BH) = BIOSMEM_CURRENT_PAGE;
+                        cpu.set_register(crate::machinecode::Operand::AL) = BIOSMEM_CURRENT_MODE|(BIOSMEM_VIDEO_CTL)&0x80);
+                        cpu.set_register(crate::machinecode::Operand::AH) = BIOSMEM_NB_COLS;*/
+                        println!("BIOS ({}): Get video mode", cpu.cycle_counter);
+                    },
+                    0x10 => {
+                        match argument {
+                            0x00 => {
+                                vga.is_next_atc_data = false;
+                                vga.write_to_port(cpu.cycle_counter, 0x3C0, cpu.get_register(crate::machinecode::Operand::BL) as u8);
+                                vga.write_to_port(cpu.cycle_counter, 0x3C0, cpu.get_register(crate::machinecode::Operand::BH) as u8);
+                            },
+                            _ => {
+                                println!("BIOS ({}): Unsupported palette function argument={:02X}", cpu.cycle_counter, argument);
+                            }
+                        }
+                    },
+                    _ => {
+                        println!("BIOS ({}): Unsupported video command={:02X} argument={:02X}", cpu.cycle_counter, command, argument);
+                    }
+                }
+            },
             0x11 => {
-                cpu.set_register(Operand::AX, 0xD426);
+                cpu.set_register(Operand::AX, 0xD426); // 1101 0100 0010 0110
+                //   80x87 coprocessor installed
+                //   pointing device installed
+                // > initial video mode: 80x25 color
+                //   number of serial ports installed: 2
+                //   game port installed
+                //   number of parallel ports installed: 3
                 println!("BIOS ({}): Get Equipment List", cpu.cycle_counter);
             },
+            // 0x13 // Disk
+            // 0x16 // Get Keystroke
+            // 0x2A // Network
             0x33 => {
                 println!("BIOS ({}): Mouse command={}", cpu.cycle_counter, cpu.get_register(Operand::AX));
                 cpu.set_register(Operand::AX, 0); // Mouse driver not installed
