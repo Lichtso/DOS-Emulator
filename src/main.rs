@@ -7,6 +7,7 @@ extern crate chrono;
 extern crate clap;
 extern crate serde;
 extern crate toml;
+extern crate termion;
 
 mod bit_utils;
 mod machinecode;
@@ -19,6 +20,12 @@ mod pic;
 mod pit;
 mod ps2_controller;
 mod vga;
+mod debugger;
+
+use termion::input::TermRead;
+use termion::raw::IntoRawMode;
+
+
 
 fn main() {
     let matches = clap::App::new("DOS Emulator")
@@ -40,20 +47,36 @@ fn main() {
         .get_matches();
     let mut cpu = Box::new(crate::cpu::CPU::new());
     let mut bus = Box::new(crate::bus::BUS::new());
+    cpu.interrupt_breakpoints[1] = true;
+    cpu.interrupt_breakpoints[3] = true;
     let config_path = matches.value_of("config").map_or(std::path::Path::new("config.toml").to_path_buf(), |v| std::path::Path::new(v).to_path_buf());
     bus.config = toml::from_str(std::fs::read_to_string(config_path).unwrap().as_str()).unwrap();
     bus.dos.mount_point_c = matches.value_of("path C").map_or(std::env::current_dir().unwrap(), |v| std::path::Path::new(v).to_path_buf());
     bus.dos.load_executable(&mut cpu, &mut bus.ram, std::path::Path::new(matches.value_of("executable").unwrap())).unwrap();
+    bus.pit.clock_frequency = bus.config.timing.cpu_frequency/4.0;
     let cpu_frequency = bus.config.timing.cpu_frequency;
     let cpu_cycles_per_compensation_interval = (bus.config.timing.cpu_frequency/bus.config.timing.compensation_frequency) as u64;
     std::thread::Builder::new().name("worker".to_string()).spawn(move || {
         let mut last_cycle_count: u64 = 0;
         let mut last_time = std::time::SystemTime::now();
-        loop {
+        let mut terminate = false;
+        let mut debugger = crate::debugger::Debugger::new();
+        let mut stdin = termion::async_stdin();
+        let mut stdout = std::io::stdout().into_raw_mode().unwrap();
+        stdout.suspend_raw_mode().unwrap();
+        while !terminate {
+            let stdin_borrow = &mut stdin;
+            for key in stdin_borrow.keys() {
+                match key.unwrap() {
+                    termion::event::Key::Ctrl('c') => { terminate = true; },
+                    key => debugger.handle_input(&mut cpu, &mut bus, &mut stdout, key)
+                }
+            }
             if cpu.execution_state == crate::cpu::ExecutionState::Running {
                 for _ in 0..cpu_cycles_per_compensation_interval {
                     cpu.execute_instruction(&mut bus);
                     if cpu.execution_state != crate::cpu::ExecutionState::Running {
+                        debugger.pause(&mut cpu, &mut bus, &mut stdout);
                         break;
                     }
                 }
@@ -69,5 +92,7 @@ fn main() {
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
         }
+        debugger.unpause(&mut cpu, &mut bus, &mut stdout);
+        std::process::exit(0);
     }).unwrap();
 }
