@@ -3,6 +3,7 @@ name = "DOS-Emulator"
 version = "0.1.0"
 authors = ["Alexander Meißner <AlexanderMeissner@gmx.net>"]
 edition = "2018"
+build = "src/build.rs"
 
 [dependencies]
 strum = "0.17.1"
@@ -12,3 +13,7 @@ clap = "2.33.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5.5"
 termion = "1.5.4"
+glutin = "0.22.0"
+
+[build-dependencies]
+gl_generator = "0.11"

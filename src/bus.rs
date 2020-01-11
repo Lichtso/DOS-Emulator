@@ -81,7 +81,8 @@ impl HandlerSchedule {
 
 #[derive(Deserialize)]
 pub struct Config {
-    pub timing: Timing
+    pub timing: Timing,
+    pub keymap: toml::value::Table
 }
 
 #[derive(Deserialize)]
@@ -115,7 +116,8 @@ impl BUS {
             dos: crate::dos::DiskOperatingSystem::new(),
             handler_schedule: HandlerSchedule::new(),
             config: Config {
-                timing: unsafe { std::mem::zeroed() }
+                timing: unsafe { std::mem::zeroed() },
+                keymap: toml::value::Table::new()
             }
         };
         bus.ram.resize(bus.ram.capacity(), 0);

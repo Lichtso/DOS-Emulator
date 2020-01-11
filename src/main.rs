@@ -8,6 +8,7 @@ extern crate clap;
 extern crate serde;
 extern crate toml;
 extern crate termion;
+extern crate glutin;
 
 mod bit_utils;
 mod machinecode;
@@ -21,9 +22,11 @@ mod pit;
 mod ps2_controller;
 mod vga;
 mod debugger;
+mod gui;
 
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use std::str::FromStr;
 
 
 
@@ -54,8 +57,14 @@ fn main() {
     bus.dos.mount_point_c = matches.value_of("path C").map_or(std::env::current_dir().unwrap(), |v| std::path::Path::new(v).to_path_buf());
     bus.dos.load_executable(&mut cpu, &mut bus.ram, std::path::Path::new(matches.value_of("executable").unwrap())).unwrap();
     bus.pit.clock_frequency = bus.config.timing.cpu_frequency/4.0;
+    let mut keycode_translation: [u8; 256] = unsafe { std::mem::zeroed() };
+    for (key_name, scancode) in &bus.config.keymap {
+        keycode_translation[scancode.as_integer().unwrap() as usize] = crate::bios::KeyCode::from_str(key_name.as_str()).unwrap() as u8;
+    }
     let cpu_frequency = bus.config.timing.cpu_frequency;
     let cpu_cycles_per_compensation_interval = (bus.config.timing.cpu_frequency/bus.config.timing.compensation_frequency) as u64;
+    let bus_ptr = { &mut *bus as *mut crate::bus::BUS };
+    let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::Builder::new().name("worker".to_string()).spawn(move || {
         let mut last_cycle_count: u64 = 0;
         let mut last_time = std::time::SystemTime::now();
@@ -65,6 +74,19 @@ fn main() {
         let mut stdout = std::io::stdout().into_raw_mode().unwrap();
         stdout.suspend_raw_mode().unwrap();
         while !terminate {
+            while let Ok(event) = receiver.try_recv() {
+                match event {
+                    crate::gui::InputEvent::Termination => { terminate = true; },
+                    crate::gui::InputEvent::Continue => { debugger.unpause(&mut cpu, &mut bus, &mut stdout); },
+                    crate::gui::InputEvent::Pause => { debugger.pause(&mut cpu, &mut bus, &mut stdout); },
+                    crate::gui::InputEvent::KeyPress(scancode) => {
+                        bus.ps2_controller.push_data(&mut cpu, &mut bus.pic, &mut bus.handler_schedule, keycode_translation[scancode as usize]);
+                    },
+                    crate::gui::InputEvent::KeyRelease(scancode) => {
+                        bus.ps2_controller.push_data(&mut cpu, &mut bus.pic, &mut bus.handler_schedule, keycode_translation[scancode as usize]|0x80);
+                    }
+                }
+            }
             let stdin_borrow = &mut stdin;
             for key in stdin_borrow.keys() {
                 match key.unwrap() {
@@ -95,4 +117,5 @@ fn main() {
         debugger.unpause(&mut cpu, &mut bus, &mut stdout);
         std::process::exit(0);
     }).unwrap();
+    crate::gui::run_loop(sender, bus_ptr);
 }
