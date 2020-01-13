@@ -53,8 +53,7 @@ pub enum InputEvent {
     Termination,
     Continue,
     Pause,
-    KeyPress(u8),
-    KeyRelease(u8)
+    Key(u8, bool)
 }
 
 const SCALE_WIDTH: f32 = 1.0;
@@ -166,12 +165,12 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: *mut crate
                     match input.state {
                         glutin::event::ElementState::Pressed => {
                             if pressed_keys.insert(input.scancode) {
-                                sender.send(InputEvent::KeyPress(input.scancode as u8)).unwrap();
+                                sender.send(InputEvent::Key(input.scancode as u8, true)).unwrap();
                             }
                         },
                         glutin::event::ElementState::Released => {
                             if pressed_keys.remove(&input.scancode) {
-                                sender.send(InputEvent::KeyRelease(input.scancode as u8)).unwrap();
+                                sender.send(InputEvent::Key(input.scancode as u8, false)).unwrap();
                             }
                         }
                     }

@@ -23,18 +23,18 @@ mod ps2_controller;
 mod vga;
 mod debugger;
 mod gui;
+mod keyboard_mapping;
 
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use std::str::FromStr;
 
 
 
 fn main() {
-    let matches = clap::App::new("DOS Emulator")
+    let matches = clap::App::new("dos-emulator")
         .version("0.1.0")
         .author("Alexander Meißner <AlexanderMeissner@gmx.net>")
-        .about("DOSBox clone written in Rust")
+        .about("Emulator of the IBM PC running DOS written in Rust")
         .arg(clap::Arg::with_name("config")
             .long("config")
             .help("configuration toml")
@@ -53,14 +53,10 @@ fn main() {
     cpu.interrupt_breakpoints[1] = true;
     cpu.interrupt_breakpoints[3] = true;
     let config_path = matches.value_of("config").map_or(std::path::Path::new("config.toml").to_path_buf(), |v| std::path::Path::new(v).to_path_buf());
-    bus.config = toml::from_str(std::fs::read_to_string(config_path).unwrap().as_str()).unwrap();
+    bus.config = toml::from_str(std::fs::read_to_string(&config_path).unwrap().as_str()).unwrap();
     bus.dos.mount_point_c = matches.value_of("path C").map_or(std::env::current_dir().unwrap(), |v| std::path::Path::new(v).to_path_buf());
     bus.dos.load_executable(&mut cpu, &mut bus.ram, std::path::Path::new(matches.value_of("executable").unwrap())).unwrap();
     bus.pit.clock_frequency = bus.config.timing.cpu_frequency/4.0;
-    let mut keycode_translation: [u8; 256] = unsafe { std::mem::zeroed() };
-    for (key_name, scancode) in &bus.config.keymap {
-        keycode_translation[scancode.as_integer().unwrap() as usize] = crate::bios::KeyCode::from_str(key_name.as_str()).unwrap() as u8;
-    }
     let cpu_frequency = bus.config.timing.cpu_frequency;
     let cpu_cycles_per_compensation_interval = (bus.config.timing.cpu_frequency/bus.config.timing.compensation_frequency) as u64;
     let bus_ptr = { &mut *bus as *mut crate::bus::BUS };
@@ -70,6 +66,8 @@ fn main() {
         let mut last_time = std::time::SystemTime::now();
         let mut terminate = false;
         let mut debugger = crate::debugger::Debugger::new();
+        let mut keyboard_mapping = crate::keyboard_mapping::KeyboardMapping::new();
+        keyboard_mapping.load_config(&bus.config);
         let mut stdin = termion::async_stdin();
         let mut stdout = std::io::stdout().into_raw_mode().unwrap();
         stdout.suspend_raw_mode().unwrap();
@@ -77,21 +75,40 @@ fn main() {
             while let Ok(event) = receiver.try_recv() {
                 match event {
                     crate::gui::InputEvent::Termination => { terminate = true; },
-                    crate::gui::InputEvent::Continue => { debugger.unpause(&mut cpu, &mut bus, &mut stdout); },
-                    crate::gui::InputEvent::Pause => { debugger.pause(&mut cpu, &mut bus, &mut stdout); },
-                    crate::gui::InputEvent::KeyPress(scancode) => {
-                        bus.ps2_controller.push_data(&mut cpu, &mut bus.pic, &mut bus.handler_schedule, keycode_translation[scancode as usize]);
+                    crate::gui::InputEvent::Continue => {
+                        if !keyboard_mapping.mapping_tool_is_active {
+                            debugger.unpause(&mut cpu, &mut bus, &mut stdout);
+                        }
                     },
-                    crate::gui::InputEvent::KeyRelease(scancode) => {
-                        bus.ps2_controller.push_data(&mut cpu, &mut bus.pic, &mut bus.handler_schedule, keycode_translation[scancode as usize]|0x80);
+                    crate::gui::InputEvent::Pause => {
+                        if !keyboard_mapping.mapping_tool_is_active {
+                            debugger.pause(&mut cpu, &mut bus, &mut stdout);
+                        }
+                    },
+                    crate::gui::InputEvent::Key(scancode, pressed) => {
+                        keyboard_mapping.handle_gui_key(&mut cpu, &mut bus, &mut stdout, scancode, pressed);
                     }
                 }
             }
             let stdin_borrow = &mut stdin;
             for key in stdin_borrow.keys() {
                 match key.unwrap() {
-                    termion::event::Key::Ctrl('c') => { terminate = true; },
-                    key => debugger.handle_input(&mut cpu, &mut bus, &mut stdout, key)
+                    termion::event::Key::Ctrl('c') => {
+                        terminate = true;
+                    },
+                    termion::event::Key::Char('k') => {
+                        keyboard_mapping.activate(&mut cpu, &mut stdout);
+                    },
+                    termion::event::Key::Char('p') => {
+                        debugger.pause(&mut cpu, &mut bus, &mut stdout);
+                    },
+                    key => {
+                        if keyboard_mapping.mapping_tool_is_active {
+                            keyboard_mapping.handle_cli_key(&mut stdout, key);
+                        } else {
+                            debugger.handle_input(&mut cpu, &mut bus, &mut stdout, key);
+                        }
+                    }
                 }
             }
             if cpu.execution_state == crate::cpu::ExecutionState::Running {
@@ -115,6 +132,8 @@ fn main() {
             }
         }
         debugger.unpause(&mut cpu, &mut bus, &mut stdout);
+        keyboard_mapping.save_config(&mut bus.config);
+        std::fs::write(&config_path, toml::to_string(&bus.config).unwrap()).unwrap();
         std::process::exit(0);
     }).unwrap();
     crate::gui::run_loop(sender, bus_ptr);

@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use serde::Deserialize;
+use serde::Serialize;
 
 
 
@@ -79,13 +80,13 @@ impl HandlerSchedule {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Config {
     pub timing: Timing,
     pub keymap: toml::value::Table
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Timing {
     pub cpu_frequency: f64,
     pub compensation_frequency: f64,

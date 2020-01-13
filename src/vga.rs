@@ -1,6 +1,6 @@
 pub struct VideoGraphicsArray {
-    pub width: u32,
-    pub height: u32,
+    pub width: u16,
+    pub height: u16,
     pub video_mode_dirty: bool,
     pub vram_dirty: bool,
     pub palette_dirty: bool,

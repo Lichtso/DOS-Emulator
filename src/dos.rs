@@ -274,9 +274,9 @@ impl DiskOperatingSystem {
                     cpu.set_register(Operand::AL, self.keyboard_spill as u16);
                     self.keyboard_spill = 0;
                 } else {
-                    let key_code = bios.keyboard_buffer_pop().unwrap_or(0);
-                    cpu.set_register(Operand::AL, key_code&0xFF);
-                    self.keyboard_spill = if key_code == 0 || key_code&0xFF != 0 { 0 } else { (key_code>>8) as u8 };
+                    let keycode = bios.keyboard_buffer_pop().unwrap_or(0);
+                    cpu.set_register(Operand::AL, keycode&0xFF);
+                    self.keyboard_spill = if keycode == 0 || keycode&0xFF != 0 { 0 } else { (keycode>>8) as u8 };
                 }
             },
             0x1A => { // Set DTA address

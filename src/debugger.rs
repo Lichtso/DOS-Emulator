@@ -161,7 +161,7 @@ impl Debugger {
 
     pub fn handle_input(&mut self, cpu: &mut crate::cpu::CPU, bus: &mut crate::bus::BUS, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, key: termion::event::Key) {
         match key {
-            termion::event::Key::Char('P') => {
+            termion::event::Key::Char('p') => {
                 let mut file = std::fs::File::create(&std::path::Path::new("profile.txt")).unwrap();
                 for (entry, counter) in &cpu.instruction_profile {
                     write!(file, "{}: {}\n", entry, counter).unwrap();
@@ -169,15 +169,15 @@ impl Debugger {
                 cpu.instruction_profile_recording = true;
                 return;
             },
-            termion::event::Key::Char('S') => {
+            termion::event::Key::Char('s') => {
                 self.data_view_segment = cpu.get_register(Operand::SS);
                 self.data_view_offset = cpu.get_register(Operand::SP)&0xFFF0;
             },
-            termion::event::Key::Char('A') => {
+            termion::event::Key::Char('a') => {
                 self.data_view_segment = cpu.get_register(Operand::ES);
                 self.data_view_offset = cpu.get_register(Operand::DI)&0xFFF0;
             },
-            termion::event::Key::Char('D') => {
+            termion::event::Key::Char('d') => {
                 self.data_view_segment = cpu.get_register(Operand::DS);
                 self.data_view_offset = cpu.get_register(Operand::SI)&0xFFF0;
             },
