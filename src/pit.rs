@@ -19,6 +19,9 @@ pub struct ProgrammableIntervalTimerChannel {
 
 pub struct ProgrammableIntervalTimer {
     pub clock_frequency: f64,
+    pub beeper_event_buffer: [(u64, f32); 16],
+    pub beeper_event_write_pos: usize,
+    pub beeper_event_read_pos: usize,
     channels: [ProgrammableIntervalTimerChannel; 3]
 }
 
@@ -26,6 +29,9 @@ impl ProgrammableIntervalTimer {
     pub fn new() -> Self {
         Self {
             clock_frequency: 0.0,
+            beeper_event_buffer: unsafe { std::mem::zeroed() },
+            beeper_event_write_pos: 0,
+            beeper_event_read_pos: 0,
             channels: [ProgrammableIntervalTimerChannel {
                 operation_mode: 0,
                 access_mode: AccessMode::LowThenHigh,
@@ -38,22 +44,26 @@ impl ProgrammableIntervalTimer {
         }
     }
 
-    fn get_channel_reload_value(&mut self, channel: usize) -> u64 {
-        match self.channels[channel].operation_mode {
-            3 | 7 => {
-                self.channels[channel].reload as u64*8
-            },
-            _ => {
-                self.channels[channel].reload as u64*4
-            }
-        }
+    fn push_beeper_event(&mut self, cycle_counter: u64) {
+        let frequency = self.clock_frequency as f32/(self.calculate_reload_of_channel(2) as f32);
+        self.beeper_event_buffer[self.beeper_event_write_pos] = (cycle_counter, if self.channels[2].input_mask { frequency } else { 0.0 });
+        self.beeper_event_write_pos = (self.beeper_event_write_pos+1)%self.beeper_event_buffer.len();
+    }
+
+    fn calculate_reload_of_channel(&mut self, channel: usize) -> u64 {
+        let mut reload = self.channels[channel].reload as u64;
+        if reload == 0 { reload = 0x10000; }
+        (match self.channels[channel].operation_mode {
+            3 | 7 => 4,
+            _ => 2
+        })*reload
     }
 
     fn calculate_counter_of_channel(&mut self, channel: usize, cycle_counter: u64) -> u16 {
         if self.channels[channel].trigger_at_cycle == u64::max_value() {
             return 0;
         }
-        let reload_value = self.get_channel_reload_value(channel);
+        let reload_value = self.calculate_reload_of_channel(channel);
         let last_start = cycle_counter-self.channels[channel].trigger_at_cycle+reload_value;
         match self.channels[channel].operation_mode {
             2 | 6 | 3 | 7 => (last_start%reload_value) as u16,
@@ -65,7 +75,7 @@ impl ProgrammableIntervalTimer {
         if self.channels[channel].trigger_at_cycle == u64::max_value() {
             return self.channels[channel].operation_mode > 1;
         }
-        let reload_value = self.get_channel_reload_value(channel);
+        let reload_value = self.calculate_reload_of_channel(channel);
         let last_start = cycle_counter-(self.channels[channel].trigger_at_cycle-reload_value);
         match self.channels[channel].operation_mode {
             0 | 1 => last_start >= reload_value,
@@ -77,7 +87,7 @@ impl ProgrammableIntervalTimer {
     pub fn scheduled_handler(&mut self, cpu: &mut crate::cpu::CPU, pic: &mut crate::pic::ProgrammableInterruptController, handler_schedule: &mut crate::bus::HandlerSchedule, channel: usize) {
         match self.channels[channel].operation_mode {
             2 | 6 | 3 | 7 => {
-                self.channels[channel].trigger_at_cycle += self.get_channel_reload_value(channel);
+                self.channels[channel].trigger_at_cycle += self.calculate_reload_of_channel(channel);
                 handler_schedule.schedule_handler(crate::bus::HandlerScheduleEntry {
                     trigger_at_cycle: self.channels[channel].trigger_at_cycle,
                     kind: crate::bus::HandlerScheduleEntryKind::from(channel)
@@ -117,7 +127,12 @@ impl ProgrammableIntervalTimer {
     pub fn write_to_port(&mut self, cycle_counter: u64, handler_schedule: &mut crate::bus::HandlerSchedule, address: u16, value: u8) {
         match address {
             0x61 => {
-                self.channels[2].input_mask = value&1 == 1;
+                let input_mask = value&1 == 1;
+                let changed = self.channels[2].input_mask != input_mask;
+                self.channels[2].input_mask = input_mask;
+                if changed {
+                    self.push_beeper_event(cycle_counter);
+                }
             },
             0x40..=0x42 => {
                 let channel = (address-0x40) as usize;
@@ -130,16 +145,14 @@ impl ProgrammableIntervalTimer {
                     }
                 }
                 if self.channels[channel].access_mode != AccessMode::LowThenHigh {
-                    // println!("PIT ({}): channel={} reload={:04X} ({} Hz)", cycle_counter, channel, self.channels[channel].reload, self.clock_frequency/(self.channels[channel].reload as f64));
-                    self.channels[channel].trigger_at_cycle = cycle_counter+self.get_channel_reload_value(channel);
-                    if self.channels[channel].reload == 0 {
-                        handler_schedule.cancel_handler(crate::bus::HandlerScheduleEntryKind::from(channel));
-                    } else {
-                        handler_schedule.schedule_handler(crate::bus::HandlerScheduleEntry {
-                            kind: crate::bus::HandlerScheduleEntryKind::from(channel),
-                            trigger_at_cycle: self.channels[channel].trigger_at_cycle
-                        });
+                    if channel == 2 {
+                        self.push_beeper_event(cycle_counter);
                     }
+                    self.channels[channel].trigger_at_cycle = cycle_counter+self.calculate_reload_of_channel(channel);
+                    handler_schedule.schedule_handler(crate::bus::HandlerScheduleEntry {
+                        kind: crate::bus::HandlerScheduleEntryKind::from(channel),
+                        trigger_at_cycle: self.channels[channel].trigger_at_cycle
+                    });
                 }
                 self.channels[channel].access_mode = match self.channels[channel].access_mode {
                     AccessMode::LowThenHigh => AccessMode::HighThenLow,
@@ -151,7 +164,6 @@ impl ProgrammableIntervalTimer {
                 let channel = (value>>6) as usize;
                 let operation_mode = (value>>1)&7;
                 let access_mode = (value>>4)&3;
-                // println!("PIT ({}): channel={} operation_mode={} access_mode={}", cycle_counter, channel, operation_mode, access_mode);
                 if access_mode == 0 {
                     self.channels[channel].is_latched = true;
                     self.channels[channel].latch_read = self.calculate_counter_of_channel(channel, cycle_counter);

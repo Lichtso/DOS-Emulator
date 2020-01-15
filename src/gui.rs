@@ -59,7 +59,7 @@ pub enum InputEvent {
 const SCALE_WIDTH: f32 = 1.0;
 const SCALE_HEIGHT: f32 = 1.37;
 
-pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: *mut crate::bus::BUS) {
+pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: usize) {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new().with_visible(false).with_resizable(false);
     let windowed_context = glutin::ContextBuilder::new().build_windowed(window_builder, &event_loop).unwrap();
@@ -67,6 +67,8 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: *mut crate
     let gl = gl::Gl::load_with(|ptr| windowed_context.get_proc_address(ptr) as *const _);
     let texture_handles: [u32; 2] = [0, 0];
     unsafe {
+        let gl_version = std::ffi::CStr::from_ptr(gl.GetString(gl::VERSION) as *const _).to_str().unwrap();
+        println!("GUI: OpenGL version {}", gl_version);
         let mut vertex_buffer = std::mem::zeroed();
         gl.GenBuffers(1, &mut vertex_buffer);
         gl.BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
@@ -102,7 +104,7 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: *mut crate
         gl.TexImage1D(gl::TEXTURE_1D, 0, gl::RGBA8 as i32, 16, 0, gl::RGBA as u32, gl::UNSIGNED_BYTE, std::ptr::null());
         texture_setup(&gl, gl::TEXTURE_2D, texture_handles[1]);
     }
-    let bus = unsafe { &mut (*bus_ptr) };
+    let bus = unsafe { &mut *(bus_ptr as *mut crate::bus::BUS) };
     let event_loop_interval = 1.0/bus.config.timing.window_update_frequency;
     let mut pressed_keys = std::collections::HashSet::new();
     event_loop.run(move |event, _event_loop_window_target, control_flow| {
@@ -120,6 +122,7 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: *mut crate
                         window.set_inner_size(glutin::dpi::LogicalSize::new((bus.vga.width as f32*SCALE_WIDTH) as u32, (bus.vga.height as f32*SCALE_HEIGHT) as u32));
                         window.set_title(format!("VGA {}x{}", bus.vga.width, bus.vga.height).as_str());
                         window.set_visible(true);
+                        println!("GUI: Changed resolution to {}x{}", bus.vga.width, bus.vga.height);
                     } else {
                         window.set_visible(false);
                     }

@@ -9,6 +9,7 @@ extern crate serde;
 extern crate toml;
 extern crate termion;
 extern crate glutin;
+extern crate cpal;
 
 mod bit_utils;
 mod machinecode;
@@ -24,6 +25,7 @@ mod vga;
 mod debugger;
 mod gui;
 mod keyboard_mapping;
+mod audio;
 
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
@@ -56,10 +58,16 @@ fn main() {
     bus.config = toml::from_str(std::fs::read_to_string(&config_path).unwrap().as_str()).unwrap();
     bus.dos.mount_point_c = matches.value_of("path C").map_or(std::env::current_dir().unwrap(), |v| std::path::Path::new(v).to_path_buf());
     bus.dos.load_executable(&mut cpu, &mut bus.ram, std::path::Path::new(matches.value_of("executable").unwrap())).unwrap();
-    bus.pit.clock_frequency = bus.config.timing.cpu_frequency/4.0;
-    let cpu_frequency = bus.config.timing.cpu_frequency;
-    let cpu_cycles_per_compensation_interval = (bus.config.timing.cpu_frequency/bus.config.timing.compensation_frequency) as u64;
-    let bus_ptr = { &mut *bus as *mut crate::bus::BUS };
+    bus.pit.clock_frequency = bus.config.timing.clock_frequency;
+    let clock_frequency = bus.config.timing.clock_frequency;
+    let cpu_cycles_per_compensation_interval = (clock_frequency/bus.config.timing.compensation_frequency) as u64;
+    let cpu_ptr = { &mut *cpu as *mut crate::cpu::CPU as usize };
+    let bus_ptr = { &mut *bus as *mut crate::bus::BUS as usize };
+    if bus.config.audio.enabled {
+        std::thread::Builder::new().name("audio".to_string()).spawn(move || {
+            crate::audio::run_loop(cpu_ptr, bus_ptr);
+        }).unwrap();
+    }
     let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::Builder::new().name("worker".to_string()).spawn(move || {
         let mut last_cycle_count: u64 = 0;
@@ -119,7 +127,7 @@ fn main() {
                         break;
                     }
                 }
-                let should = (cpu.cycle_counter-last_cycle_count) as f64/cpu_frequency;
+                let should = (cpu.cycle_counter-last_cycle_count) as f64/clock_frequency;
                 let elapsed = last_time.elapsed().unwrap().as_secs_f64();
                 let compensation_delay = (should-elapsed).max(0.0);
                 if compensation_delay > 0.0 {
