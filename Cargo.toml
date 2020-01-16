@@ -1,9 +1,15 @@
 [package]
 name = "dos-emulator"
-version = "0.1.0"
+description = "Emulator of the IBM PC running DOS written in Rust"
+repository = "https://github.com/Lichtso/DOS-Emulator"
 authors = ["Alexander Meißner <AlexanderMeissner@gmx.net>"]
+license = "MIT"
+version = "0.1.0"
 edition = "2018"
 build = "src/build.rs"
+
+[badges]
+travis-ci = { repository = "Lichtso/DOS-Emulator", branch = "master" }
 
 [dependencies]
 strum = "0.17.1"
