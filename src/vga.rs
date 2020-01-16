@@ -224,7 +224,6 @@ impl VideoGraphicsArray {
                             let b = ((((value>>3)&1)*0x55)+(((value>>0)&1)*0xAA)) as u32;
                             self.palette_rgba[self.atc_index as usize] = 0xFF000000|(b<<16)|(g<<8)|r;
                             self.palette_dirty = true;
-                            println!("VGA ({}): Set Palette register={:02X} value={:02X} rgb={:06X}", cycle_counter, self.atc_index, value, self.palette_rgba[self.atc_index as usize]&0xFFFFFF);
                         }
                         0x10 => { self.mode_control = value; },
                         0x11 => { self.overscan_color = value; },

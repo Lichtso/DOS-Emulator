@@ -1,5 +1,3 @@
-#![feature(ptr_offset_from)]
-
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;

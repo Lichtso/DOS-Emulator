@@ -221,7 +221,7 @@ impl DiskOperatingSystem {
             psp.parameter_length = 0x00;
             psp.parameter[psp.parameter_length as usize] = 0x0D;
             let path = std::path::Path::new("C:").join(executable_path.strip_prefix(&self.mount_point_c).unwrap()).to_str().unwrap().replace("/", "\\");
-            let mut environment = "PATH=Z:\\\0COMSPEC=Z:\\COMMAND.COM\0BLASTER=A220 I7 D1 H5 T6\0\0\x01\0".to_string();
+            let mut environment = "\0\0\x01\0".to_string();
             environment.push_str(path.as_str());
             let environment_data = environment.as_bytes();
             let environment_address = crate::bus::BUS::physical_address(psp.environment_segment, 0);

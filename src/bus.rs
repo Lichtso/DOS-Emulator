@@ -148,7 +148,7 @@ impl BUS {
     }
 
     pub fn read_from_memory(&mut self, cpu: &mut crate::cpu::CPU, src: *const u8, data_width: u8) -> u32 {
-        let vram_offset = unsafe { src.offset_from(&self.vga.vram[0]) };
+        let vram_offset = src as isize-&self.vga.vram[0] as *const u8 as isize;
         if vram_offset >= 0 && vram_offset < self.vga.vram.capacity() as isize {
             let mut value = self.vga.read_from_memory(cpu.cycle_counter, vram_offset as usize) as u32;
             if data_width == 16 {
@@ -166,7 +166,7 @@ impl BUS {
     }
 
     pub fn write_to_memory(&mut self, cpu: &mut crate::cpu::CPU, dst: *mut u8, data_width: u8, value: u32) {
-        let vram_offset = unsafe { dst.offset_from(&self.vga.vram[0]) };
+        let vram_offset = dst as isize-&self.vga.vram[0] as *const u8 as isize;
         if vram_offset >= 0 && vram_offset < self.vga.vram.capacity() as isize {
             self.vga.write_to_memory(cpu.cycle_counter, vram_offset as usize, value as u8);
             if data_width == 16 {
