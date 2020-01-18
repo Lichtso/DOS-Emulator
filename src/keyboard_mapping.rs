@@ -245,13 +245,13 @@ impl KeyboardMapping {
         }
     }
 
-    pub fn load_config(&mut self, config: &crate::bus::Config) {
+    pub fn load_config(&mut self, config: &crate::config::Config) {
         for (key_name, scancode) in &config.keymap {
             self.keycode_translation[scancode.as_integer().unwrap() as usize] = Keycode::from_str(key_name.as_str()).unwrap();
         }
     }
 
-    pub fn save_config(&mut self, config: &mut crate::bus::Config) {
+    pub fn save_config(&mut self, config: &mut crate::config::Config) {
         config.keymap.clear();
         for scancode in 0..self.keycode_translation.len() {
             let keycode = self.keycode_translation[scancode];

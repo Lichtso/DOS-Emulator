@@ -1,6 +1,4 @@
 use chrono::prelude::*;
-use serde::Deserialize;
-use serde::Serialize;
 
 
 
@@ -80,26 +78,6 @@ impl HandlerSchedule {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct Config {
-    pub timing: Timing,
-    pub audio: Audio,
-    pub keymap: toml::value::Table
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct Timing {
-    pub clock_frequency: f64,
-    pub compensation_frequency: f64,
-    pub window_update_frequency: f64
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct Audio {
-    pub enabled: bool,
-    pub beeper_volume: f32
-}
-
 pub struct BUS {
     rom: [u8; 4],
     pub ram: Vec<u8>,
@@ -109,11 +87,14 @@ pub struct BUS {
     pub vga: crate::vga::VideoGraphicsArray,
     pub dos: crate::dos::DiskOperatingSystem,
     pub handler_schedule: HandlerSchedule,
-    pub config: Config
+    pub audio_event_dst: std::sync::mpsc::Sender<crate::audio::AudioEvent>,
+    pub audio_event_src: std::sync::mpsc::Receiver<crate::audio::AudioEvent>,
+    pub config: crate::config::Config
 }
 
 impl BUS {
     pub fn new() -> Self {
+        let (sender, receiver) = std::sync::mpsc::channel();
         let mut bus = Self {
             rom: [0, 0, 0, 0],
             ram: Vec::with_capacity(0xA0000),
@@ -123,7 +104,9 @@ impl BUS {
             vga: crate::vga::VideoGraphicsArray::new(),
             dos: crate::dos::DiskOperatingSystem::new(),
             handler_schedule: HandlerSchedule::new(),
-            config: Config {
+            audio_event_dst: sender,
+            audio_event_src: receiver,
+            config: crate::config::Config {
                 timing: unsafe { std::mem::zeroed() },
                 audio: unsafe { std::mem::zeroed() },
                 keymap: toml::value::Table::new()
@@ -197,7 +180,7 @@ impl BUS {
 
     pub fn write_to_port(&mut self, cpu: &mut crate::cpu::CPU, address: u16, value: u8) {
         match address {
-            0x0040..=0x0047 | 0x0061 => self.pit.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, address, value),
+            0x0040..=0x0047 | 0x0061 => self.pit.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, &mut self.audio_event_dst, address, value),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.write_to_port(cpu.cycle_counter, address, value),
             0x0060 | 0x0064 => self.ps2_controller.write_to_port(cpu.cycle_counter, address, value),
             0x03B0..=0x03DF => self.vga.write_to_port(cpu.cycle_counter, address, value),

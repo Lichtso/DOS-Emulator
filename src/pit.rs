@@ -19,9 +19,6 @@ pub struct ProgrammableIntervalTimerChannel {
 
 pub struct ProgrammableIntervalTimer {
     pub clock_frequency: f64,
-    pub beeper_event_buffer: [(u64, f32); 16],
-    pub beeper_event_write_pos: usize,
-    pub beeper_event_read_pos: usize,
     channels: [ProgrammableIntervalTimerChannel; 3]
 }
 
@@ -29,9 +26,6 @@ impl ProgrammableIntervalTimer {
     pub fn new() -> Self {
         Self {
             clock_frequency: 0.0,
-            beeper_event_buffer: unsafe { std::mem::zeroed() },
-            beeper_event_write_pos: 0,
-            beeper_event_read_pos: 0,
             channels: [ProgrammableIntervalTimerChannel {
                 operation_mode: 0,
                 access_mode: AccessMode::LowThenHigh,
@@ -42,12 +36,6 @@ impl ProgrammableIntervalTimer {
                 input_mask: true
             }; 3]
         }
-    }
-
-    fn push_beeper_event(&mut self, cycle_counter: u64) {
-        let frequency = self.clock_frequency as f32/(self.calculate_reload_of_channel(2) as f32);
-        self.beeper_event_buffer[self.beeper_event_write_pos] = (cycle_counter, if self.channels[2].input_mask { frequency } else { 0.0 });
-        self.beeper_event_write_pos = (self.beeper_event_write_pos+1)%self.beeper_event_buffer.len();
     }
 
     fn calculate_reload_of_channel(&mut self, channel: usize) -> u64 {
@@ -82,6 +70,14 @@ impl ProgrammableIntervalTimer {
             3 | 7 => last_start*2 >= reload_value,
             _ => true
         }
+    }
+
+    fn push_beeper_event(&mut self, audio_event_dst: &mut std::sync::mpsc::Sender<crate::audio::AudioEvent>, cycle_counter: u64) {
+        let frequency = self.clock_frequency as f32/(self.calculate_reload_of_channel(2) as f32);
+        audio_event_dst.send(crate::audio::AudioEvent {
+            cycle_counter: cycle_counter,
+            body: crate::audio::AudioEventBody::Beeper(if self.channels[2].input_mask { frequency } else { 0.0 })
+        }).unwrap();
     }
 
     pub fn scheduled_handler(&mut self, cpu: &mut crate::cpu::CPU, pic: &mut crate::pic::ProgrammableInterruptController, handler_schedule: &mut crate::bus::HandlerSchedule, channel: usize) {
@@ -124,14 +120,14 @@ impl ProgrammableIntervalTimer {
         }
     }
 
-    pub fn write_to_port(&mut self, cycle_counter: u64, handler_schedule: &mut crate::bus::HandlerSchedule, address: u16, value: u8) {
+    pub fn write_to_port(&mut self, cycle_counter: u64, handler_schedule: &mut crate::bus::HandlerSchedule, audio_event_dst: &mut std::sync::mpsc::Sender<crate::audio::AudioEvent>, address: u16, value: u8) {
         match address {
             0x61 => {
                 let input_mask = value&1 == 1;
                 let changed = self.channels[2].input_mask != input_mask;
                 self.channels[2].input_mask = input_mask;
                 if changed {
-                    self.push_beeper_event(cycle_counter);
+                    self.push_beeper_event(audio_event_dst, cycle_counter);
                 }
             },
             0x40..=0x42 => {
@@ -146,7 +142,7 @@ impl ProgrammableIntervalTimer {
                 }
                 if self.channels[channel].access_mode != AccessMode::LowThenHigh {
                     if channel == 2 {
-                        self.push_beeper_event(cycle_counter);
+                        self.push_beeper_event(audio_event_dst, cycle_counter);
                     }
                     self.channels[channel].trigger_at_cycle = cycle_counter+self.calculate_reload_of_channel(channel);
                     handler_schedule.schedule_handler(crate::bus::HandlerScheduleEntry {

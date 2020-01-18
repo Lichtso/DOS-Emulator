@@ -12,6 +12,7 @@ extern crate cpal;
 mod bit_utils;
 mod machinecode;
 mod disassembler;
+mod config;
 mod bus;
 mod cpu;
 mod dos;
