@@ -17,6 +17,6 @@ pub struct Timing {
 
 #[derive(Deserialize, Serialize)]
 pub struct Audio {
-    pub enabled: bool,
-    pub beeper_volume: f32
+    pub beeper_enabled: bool,
+    pub sound_blaster_enabled: bool
 }

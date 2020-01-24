@@ -1,6 +1,6 @@
 use std::fmt;
 
-const OPERAND_NAMES: [&str; 30] = [
+static OPERAND_NAMES: &'static [&str] = &[
     "AX", "CX", "DX", "BX",
     "SP", "BP", "SI", "DI",
     "ES", "CS", "SS", "DS",

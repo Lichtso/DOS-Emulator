@@ -1,6 +1,6 @@
 use crate::machinecode::Operand;
 
-const KEYCODE_TO_ASCII: [u16; 84*4] = [
+static KEYCODE_TO_ASCII: &'static [u16] = &[
       0x0000, 0x0000, 0x0000, 0x0000,
       0x011b, 0x011b, 0x011b, 0x01f0, // Escape
       0x0231, 0x0221, 0x0000, 0x7800, // 1 !
@@ -112,7 +112,7 @@ struct VideoMode {
     vde: u16
 }
 
-const VIDEO_MODES: [VideoMode; 15] = [
+static VIDEO_MODES: &'static [VideoMode] = &[
     VideoMode { index: 0x000, category: VideoCategory::TEXT, sw: 360, sh: 400, tw: 40, th: 25, cw: 9, ch: 16, pt: 8, htot: 50 , vtot: 449, hde: 40, vde: 400 },
     VideoMode { index: 0x001, category: VideoCategory::TEXT, sw: 360, sh: 400, tw: 40, th: 25, cw: 9, ch: 16, pt: 8, htot: 50 , vtot: 449, hde: 40, vde: 400 },
     VideoMode { index: 0x002, category: VideoCategory::TEXT, sw: 720, sh: 400, tw: 80, th: 25, cw: 9, ch: 16, pt: 8, htot: 100, vtot: 449, hde: 80, vde: 400 },

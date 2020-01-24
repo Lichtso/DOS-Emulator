@@ -9,6 +9,8 @@ pub enum HandlerScheduleEntryKind {
     ProgrammableIntervalTimerChannel1 = 1,
     ProgrammableIntervalTimerChannel2 = 2,
     PS2Controller = 3,
+    SoundBlasterTimerChannel0 = 4,
+    SoundBlasterTimerChannel1 = 5,
     None
 }
 
@@ -37,7 +39,7 @@ impl Ord for HandlerScheduleEntry {
 }
 
 pub struct HandlerSchedule {
-    slots: [HandlerScheduleEntry; 4],
+    slots: [HandlerScheduleEntry; 6],
     next_index: usize,
     pub next_trigger_cycle: u64
 }
@@ -45,7 +47,7 @@ pub struct HandlerSchedule {
 impl HandlerSchedule {
     pub fn new() -> Self {
         Self {
-            slots: [HandlerScheduleEntry{kind: HandlerScheduleEntryKind::None, trigger_at_cycle: 0}; 4],
+            slots: [HandlerScheduleEntry{kind: HandlerScheduleEntryKind::None, trigger_at_cycle: 0}; 6],
             next_index: 0,
             next_trigger_cycle: u64::max_value(),
         }
@@ -84,6 +86,7 @@ pub struct BUS {
     pub pit: crate::pit::ProgrammableIntervalTimer,
     pub pic: crate::pic::ProgrammableInterruptController,
     pub ps2_controller: crate::ps2_controller::PS2Controller,
+    pub sound_blaster: crate::sound_blaster::SoundBlaster,
     pub vga: crate::vga::VideoGraphicsArray,
     pub dos: crate::dos::DiskOperatingSystem,
     pub handler_schedule: HandlerSchedule,
@@ -101,6 +104,7 @@ impl BUS {
             pit: crate::pit::ProgrammableIntervalTimer::new(),
             pic: crate::pic::ProgrammableInterruptController::new(),
             ps2_controller: crate::ps2_controller::PS2Controller::new(),
+            sound_blaster: crate::sound_blaster::SoundBlaster::new(),
             vga: crate::vga::VideoGraphicsArray::new(),
             dos: crate::dos::DiskOperatingSystem::new(),
             handler_schedule: HandlerSchedule::new(),
@@ -170,6 +174,7 @@ impl BUS {
             0x0040..=0x0047 | 0x0061 => self.pit.read_from_port(cpu.cycle_counter, address),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.read_from_port(cpu.cycle_counter, address),
             0x0060 | 0x0064 => self.ps2_controller.read_from_port(cpu.cycle_counter, address),
+            0x0220..=0x0223 | 0x0388 | 0x0389 => self.sound_blaster.read_from_port(cpu.cycle_counter, address),
             0x03B0..=0x03DF => self.vga.read_from_port(cpu.cycle_counter, address),
             _ => {
                 println!("BUS ({}): Unsupported port read address={:04X}", cpu.cycle_counter, address);
@@ -180,9 +185,10 @@ impl BUS {
 
     pub fn write_to_port(&mut self, cpu: &mut crate::cpu::CPU, address: u16, value: u8) {
         match address {
-            0x0040..=0x0047 | 0x0061 => self.pit.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, &mut self.audio_event_dst, address, value),
+            0x0040..=0x0047 | 0x0061 => self.pit.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, &mut self.config, &mut self.audio_event_dst, address, value),
             0x0020..=0x0021 | 0x00A0..=0x00A1 => self.pic.write_to_port(cpu.cycle_counter, address, value),
             0x0060 | 0x0064 => self.ps2_controller.write_to_port(cpu.cycle_counter, address, value),
+            0x0220..=0x0223 | 0x0388 | 0x0389 => self.sound_blaster.write_to_port(cpu.cycle_counter, &mut self.handler_schedule, &mut self.config, &mut self.audio_event_dst, address, value),
             0x03B0..=0x03DF => self.vga.write_to_port(cpu.cycle_counter, address, value),
             _ => {
                 println!("BUS ({}): Unsupported port write address={:04X} value={:02X}", cpu.cycle_counter, address, value);
@@ -232,6 +238,9 @@ impl BUS {
             },
             HandlerScheduleEntryKind::PS2Controller => {
                 self.ps2_controller.pop_data(cpu, &mut self.pic, &mut self.handler_schedule).unwrap();
+            },
+            HandlerScheduleEntryKind::SoundBlasterTimerChannel0 | HandlerScheduleEntryKind::SoundBlasterTimerChannel1 => {
+                self.sound_blaster.scheduled_handler(cpu, &mut self.pic, kind as usize-HandlerScheduleEntryKind::SoundBlasterTimerChannel0 as usize);
             },
             _ => unreachable!()
         };
