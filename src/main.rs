@@ -29,8 +29,24 @@ mod audio;
 
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use std::io::Write;
 
 
+
+macro_rules! handle_cli_input {
+    ($stdin_borrow:ident, $terminate:ident, $key:ident, $($operation:tt)*) => {
+        for key_option in $stdin_borrow.keys() {
+            match key_option.unwrap() {
+                termion::event::Key::Ctrl('c') => {
+                    $terminate = true;
+                },
+                $key => {
+                    $($operation)*;
+                }
+            }
+        }
+    };
+}
 
 fn main() {
     let matches = clap::App::new("dos-emulator")
@@ -82,41 +98,29 @@ fn main() {
             while let Ok(event) = receiver.try_recv() {
                 match event {
                     crate::gui::InputEvent::Termination => { terminate = true; },
-                    crate::gui::InputEvent::Continue => {
-                        if !keyboard_mapping.mapping_tool_is_active {
-                            debugger.unpause(&mut cpu, &mut bus, &mut stdout);
-                        }
-                    },
-                    crate::gui::InputEvent::Pause => {
-                        if !keyboard_mapping.mapping_tool_is_active {
-                            debugger.pause(&mut cpu, &mut bus, &mut stdout);
-                        }
-                    },
                     crate::gui::InputEvent::Key(scancode, pressed) => {
                         keyboard_mapping.handle_gui_key(&mut cpu, &mut bus, &mut stdout, scancode, pressed);
-                    }
+                    },
+                    _ => {}
                 }
             }
             let stdin_borrow = &mut stdin;
-            for key in stdin_borrow.keys() {
-                match key.unwrap() {
-                    termion::event::Key::Ctrl('c') => {
-                        terminate = true;
-                    },
-                    termion::event::Key::Char('k') => {
-                        keyboard_mapping.activate(&mut cpu, &mut stdout);
-                    },
-                    termion::event::Key::Char('p') => {
-                        debugger.pause(&mut cpu, &mut bus, &mut stdout);
-                    },
-                    key => {
-                        if keyboard_mapping.mapping_tool_is_active {
-                            keyboard_mapping.handle_cli_key(&mut stdout, key);
-                        } else {
-                            debugger.handle_input(&mut cpu, &mut bus, &mut stdout, key);
-                        }
+            if cpu.execution_state == crate::cpu::ExecutionState::Running || cpu.execution_state == crate::cpu::ExecutionState::WaitForInterrupt {
+                if keyboard_mapping.mapping_tool_is_active {
+                    handle_cli_input!(stdin_borrow, terminate, key, keyboard_mapping.handle_cli_key(&mut stdout, key));
+                } else {
+                    match stdin_borrow.read_line().unwrap().unwrap().as_str() {
+                        "kmt" => {
+                            keyboard_mapping.activate(&mut stdout);
+                        },
+                        "pause" => {
+                            debugger.pause(&mut cpu, &mut bus, &mut stdout);
+                        },
+                        _ => {}
                     }
                 }
+            } else {
+                handle_cli_input!(stdin_borrow, terminate, key, debugger.handle_input(&mut cpu, &mut bus, &mut stdout, key));
             }
             if cpu.execution_state == crate::cpu::ExecutionState::Running {
                 for _ in 0..cpu_cycles_per_compensation_interval {
@@ -138,7 +142,9 @@ fn main() {
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
         }
-        debugger.unpause(&mut cpu, &mut bus, &mut stdout);
+        write!(stdout, "{}{}", termion::cursor::Show, termion::style::Reset).unwrap();
+        stdout.suspend_raw_mode().unwrap();
+        stdout.flush().unwrap();
         keyboard_mapping.save_config(&mut bus.config);
         std::fs::write(&config_path, toml::to_string(&bus.config).unwrap()).unwrap();
         std::process::exit(0);

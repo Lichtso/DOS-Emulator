@@ -225,9 +225,9 @@ const BACKGROUND: [&'static str; 21] = [
     "└─────┴─────┘ └───────┘      └────────────────────────────────────────────────────────┘     └───────┘ └─────┴─────┴─────┘ └───────────┴─────┴─────┘",
     "",
     "Type here to control the keybinding process and type in the video window to enter a scancode at the selection.",
-    "Escape: Exit the Keyboard Mapping Tool",
+    "Escape: Leave the keyboard-mapping-tool",
     "Arrow Keys: Navigate / select",
-    "Backspace: Remove / delete scancode"
+    "Backspace: Unregister selected entry"
 ];
 
 pub struct KeyboardMapping {
@@ -377,12 +377,13 @@ impl KeyboardMapping {
         }
     }
 
-    pub fn activate(&mut self, cpu: &mut crate::cpu::CPU, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
-        if cpu.execution_state != crate::cpu::ExecutionState::Paused {
+    pub fn activate(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+        if self.mapping_tool_is_active {
             return;
         }
         self.mapping_tool_is_active = true;
-        write!(stdout, "{}{}", termion::cursor::Goto(1, 1), termion::clear::All).unwrap();
+        stdout.activate_raw_mode().unwrap();
+        write!(stdout, "{}{}{}", termion::cursor::Hide, termion::cursor::Goto(1, 1), termion::clear::All).unwrap();
         for row in 0..BACKGROUND.len() {
             write!(stdout, "{}{}", termion::cursor::Goto(1, 1+row as u16), BACKGROUND[row]).unwrap();
         }
@@ -393,8 +394,12 @@ impl KeyboardMapping {
     }
 
     pub fn deactivate(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+        if !self.mapping_tool_is_active {
+            return;
+        }
         self.mapping_tool_is_active = false;
-        write!(stdout, "{}{}", termion::cursor::Goto(1, 1), termion::clear::All).unwrap();
+        write!(stdout, "{}{}{}", termion::cursor::Goto(1, 1), termion::clear::All, termion::cursor::Show).unwrap();
+        stdout.suspend_raw_mode().unwrap();
         stdout.flush().unwrap();
     }
 }

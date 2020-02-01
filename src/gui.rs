@@ -51,9 +51,10 @@ unsafe fn texture_setup(gl: &gl::Gl, target: gl::types::GLenum, texture: gl::typ
 
 pub enum InputEvent {
     Termination,
-    Continue,
-    Pause,
-    Key(u8, bool)
+    Key(u8, bool),
+    MouseButton(u8, bool),
+    MouseMove(i32, i32),
+    Focus(bool)
 }
 
 const SCALE_WIDTH: f32 = 1.0;
@@ -161,9 +162,6 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: usize) {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
                     sender.send(InputEvent::Termination).unwrap();
                 },
-                WindowEvent::Focused(focused) => {
-                    sender.send(if focused { InputEvent::Continue } else { InputEvent::Pause }).unwrap();
-                },
                 WindowEvent::KeyboardInput { input, .. } => {
                     match input.state {
                         glutin::event::ElementState::Pressed => {
@@ -177,6 +175,21 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: usize) {
                             }
                         }
                     }
+                },
+                WindowEvent::MouseInput { button, state, .. } => {
+                    let button_index = match button {
+                        glutin::event::MouseButton::Left => 0,
+                        glutin::event::MouseButton::Right => 1,
+                        glutin::event::MouseButton::Middle => 2,
+                        glutin::event::MouseButton::Other(index) => 3+index
+                    };
+                    sender.send(InputEvent::MouseButton(button_index, state == glutin::event::ElementState::Pressed)).unwrap();
+                },
+                WindowEvent::CursorMoved { position, .. } => {
+                    sender.send(InputEvent::MouseMove(position.x, position.y)).unwrap();
+                },
+                WindowEvent::Focused(focused) => {
+                    sender.send(InputEvent::Focus(focused)).unwrap();
                 },
                 _ => ()
             },

@@ -1,0 +1,10 @@
+[timing]
+clock_frequency = 4772726.666
+compensation_frequency = 100.0
+window_update_frequency = 100.0
+
+[audio]
+beeper_enabled = true
+sound_blaster_enabled = true
+
+[keymap]

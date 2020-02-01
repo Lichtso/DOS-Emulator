@@ -169,17 +169,17 @@ impl Debugger {
                 cpu.instruction_profile_recording = true;
                 return;
             },
+            termion::event::Key::Char('a') => {
+                self.data_view_segment = cpu.get_register(Operand::DS);
+                self.data_view_offset = cpu.get_register(Operand::SI)&0xFFF0;
+            },
             termion::event::Key::Char('s') => {
                 self.data_view_segment = cpu.get_register(Operand::SS);
                 self.data_view_offset = cpu.get_register(Operand::SP)&0xFFF0;
             },
-            termion::event::Key::Char('a') => {
+            termion::event::Key::Char('d') => {
                 self.data_view_segment = cpu.get_register(Operand::ES);
                 self.data_view_offset = cpu.get_register(Operand::DI)&0xFFF0;
-            },
-            termion::event::Key::Char('d') => {
-                self.data_view_segment = cpu.get_register(Operand::DS);
-                self.data_view_offset = cpu.get_register(Operand::SI)&0xFFF0;
             },
             termion::event::Key::PageUp => {
                 self.data_view_offset = self.data_view_offset.wrapping_sub(0x10);
