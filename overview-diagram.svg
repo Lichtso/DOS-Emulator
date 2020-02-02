@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1280 800" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g>
+        <path d="M1100,200L1100,160" style="fill:none;stroke:black;stroke-width:4px;"/>
+        <path d="M905,640L905,600" style="fill:none;stroke:black;stroke-width:4px;"/>
+        <path d="M830,690L710,690L710,600" style="fill:none;stroke:black;stroke-width:4px;"/>
+        <path d="M980,690L1025,690" style="fill:none;stroke:black;stroke-width:4px;"/>
+        <path d="M1100,640L1100,600" style="fill:none;stroke:black;stroke-width:4px;"/>
+        <path d="M515,200L515,160" style="fill:none;stroke:black;stroke-width:4px;"/>
+        <path d="M905,200L905,160" style="fill:none;stroke:black;stroke-width:4px;"/>
+        <path d="M1080,200L1080,180L925,180L925,160" style="fill:none;stroke:black;stroke-width:4px;"/>
+    </g>
+    <g>
+        <path d="M515,60L515,40" style="fill:none;stroke:rgb(179,179,179);stroke-width:4px;"/>
+        <path d="M905,60L905,40" style="fill:none;stroke:rgb(179,179,179);stroke-width:4px;"/>
+        <path d="M320,200L320,40" style="fill:none;stroke:rgb(179,179,179);stroke-width:4px;"/>
+        <path d="M200,40L1200,40L1200,760L905,760L905,740" style="fill:none;stroke:rgb(179,179,179);stroke-width:4px;"/>
+        <circle cx="320" cy="40" r="5" style="fill:rgb(179,179,179);"/>
+        <circle cx="515" cy="40" r="5" style="fill:rgb(179,179,179);"/>
+        <circle cx="905" cy="40" r="5" style="fill:rgb(179,179,179);"/>
+    </g>
+    <g>
+        <path d="M300,300L300,500" style="fill:none;stroke:rgb(170,0,0);stroke-width:4px;"/>
+        <path d="M690,300L690,380" style="fill:none;stroke:rgb(170,0,0);stroke-width:4px;"/>
+        <path d="M495,380L495,300" style="fill:none;stroke:rgb(170,0,0);stroke-width:4px;"/>
+        <path d="M885,300L885,380" style="fill:none;stroke:rgb(170,0,0);stroke-width:4px;"/>
+        <path d="M1080,300L1080,500" style="fill:none;stroke:rgb(170,0,0);stroke-width:4px;"/>
+        <path d="M200,350L220,350L245,380L1175,380" style="fill:none;stroke:rgb(170,0,0);stroke-width:4px;"/>
+        <circle cx="300" cy="380" r="5" style="fill:rgb(170,0,0);"/>
+        <circle cx="495" cy="380" r="5" style="fill:rgb(170,0,0);"/>
+        <circle cx="690" cy="380" r="5" style="fill:rgb(170,0,0);"/>
+        <circle cx="885" cy="380" r="5" style="fill:rgb(170,0,0);"/>
+        <circle cx="1080" cy="380" r="5" style="fill:rgb(170,0,0);"/>
+        <text x="69.268px" y="360.833px" style="font-family:'Helvetica';font-size:30px;">Interrupt</text>
+    </g>
+    <g>
+        <path d="M200,400L1175,400" style="fill:none;stroke:rgb(0,170,0);stroke-width:4px;"/>
+        <path d="M830,550L785,550" style="fill:none;stroke:rgb(0,170,0);stroke-width:4px;"/>
+        <path d="M320,300.535L320,500" style="fill:none;stroke:rgb(0,170,0);stroke-width:4px;"/>
+        <path d="M905,400L905,500" style="fill:none;stroke:rgb(0,170,0);stroke-width:4px;"/>
+        <path d="M515,300.535L515,500" style="fill:none;stroke:rgb(0,170,0);stroke-width:4px;"/>
+        <circle cx="320" cy="400" r="5" style="fill:rgb(0,170,0);"/>
+        <circle cx="515" cy="400" r="5" style="fill:rgb(0,170,0);"/>
+        <circle cx="905" cy="400" r="5" style="fill:rgb(0,170,0);"/>
+        <text x="72.652px" y="407.654px" style="font-family:'Helvetica';font-size:30px;">Memory</text>
+    </g>
+    <g>
+        <path d="M200,450L220,450L245,420L1175,420" style="fill:none;stroke:rgb(0,0,170);stroke-width:4px;"/>
+        <path d="M1120,300L1120,500" style="fill:none;stroke:rgb(0,0,170);stroke-width:4px;"/>
+        <path d="M535,300L535,420" style="fill:none;stroke:rgb(0,0,170);stroke-width:4px;"/>
+        <path d="M730,300L730,420" style="fill:none;stroke:rgb(0,0,170);stroke-width:4px;"/>
+        <path d="M925,300L925,500" style="fill:none;stroke:rgb(0,0,170);stroke-width:4px;"/>
+        <circle cx="535" cy="420" r="5" style="fill:rgb(0,0,170);"/>
+        <circle cx="730" cy="420" r="5" style="fill:rgb(0,0,170);"/>
+        <circle cx="925" cy="420" r="5" style="fill:rgb(0,0,170);"/>
+        <circle cx="1120" cy="420" r="5" style="fill:rgb(0,0,170);"/>
+        <text x="125.972px" y="457.654px" style="font-family:'Helvetica';font-size:30px;">Port</text>
+    </g>
+    <g>
+        <path d="M1175,510C1175,504.481 1170.52,500 1165,500L1035,500C1029.48,500 1025,504.481 1025,510L1025,590C1025,595.519 1029.48,600 1035,600L1165,600C1170.52,600 1175,595.519 1175,590L1175,510Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,635.268,-28.4203)">
+            <text x="432.241px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">PS/2</text>
+            <text x="421.402px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">(8042)</text>
+        </g>
+        <path d="M980,510C980,504.481 975.519,500 970,500L840,500C834.481,500 830,504.481 830,510L830,590C830,595.519 834.481,600 840,600L970,600C975.519,600 980,595.519 980,590L980,510Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <text x="872.378px" y="560.796px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">VGA</text>
+        <path d="M785,510C785,504.481 780.519,500 775,500L645,500C639.481,500 635,504.481 635,510L635,590C635,595.519 639.481,600 645,600L775,600C780.519,600 785,595.519 785,590L785,510Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <text x="666.443px" y="560.796px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">VRAM</text>
+        <path d="M590,510C590,504.481 585.519,500 580,500L450,500C444.481,500 440,504.481 440,510L440,590C440,595.519 444.481,600 450,600L580,600C585.519,600 590,595.519 590,590L590,510Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <text x="480.598px" y="560.796px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">RAM</text>
+        <path d="M1175,210C1175,204.481 1170.52,200 1165,200L1035,200C1029.48,200 1025,204.481 1025,210L1025,290C1025,295.519 1029.48,300 1035,300L1165,300C1170.52,300 1175,295.519 1175,290L1175,210Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,635.268,-328.75)">
+            <text x="441.426px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">PIT</text>
+            <text x="421.402px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">(8253)</text>
+        </g>
+        <path d="M980,210C980,204.481 975.519,200 970,200L840,200C834.481,200 830,204.481 830,210L830,290C830,295.519 834.481,300 840,300L970,300C975.519,300 980,295.519 980,290L980,210Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,439.309,-325.681)">
+            <text x="418.106px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Sound</text>
+            <text x="413.902px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Blaster</text>
+        </g>
+        <path d="M785,210C785,204.481 780.519,200 775,200L645,200C639.481,200 635,204.481 635,210L635,290C635,295.519 639.481,300 645,300L775,300C780.519,300 785,295.519 785,290L785,210Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,245.268,-328.545)">
+            <text x="439.756px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">PIC</text>
+            <text x="421.402px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">(8259)</text>
+        </g>
+        <path d="M590,210C590,204.481 585.519,200 580,200L450,200C444.481,200 440,204.481 440,210L440,290C440,295.519 444.481,300 450,300L580,300C585.519,300 590,295.519 590,290L590,210Z" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,50.2683,-328.545)">
+            <text x="433.091px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">CPU</text>
+            <text x="421.402px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">(8086)</text>
+        </g>
+        <rect x="44.478" y="624.026" width="30" height="30" style="fill:rgb(207,241,255);stroke:black;stroke-width:1px;"/>
+        <text x="96.346px" y="649.5px" style="font-family:'Helvetica';font-size:30px;">Guest hardware</text>
+    </g>
+    <g>
+        <path d="M395,510C395,504.481 390.519,500 385,500L255,500C249.481,500 245,504.481 245,510L245,590C245,595.519 249.481,600 255,600L385,600C390.519,600 395,595.519 395,590L395,510Z" style="fill:rgb(214,255,215);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <text x="282.676px" y="560.825px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">BIOS</text>
+        <path d="M395,210C395,204.481 390.519,200 385,200L255,200C249.481,200 245,204.481 245,210L245,290C245,295.519 249.481,300 255,300L385,300C390.519,300 395,295.519 395,290L395,210Z" style="fill:rgb(214,255,215);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <text x="286.88px" y="260.825px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">DOS</text>
+        <rect x="44.478" y="674.026" width="30" height="30" style="fill:rgb(214,255,215);stroke:black;stroke-width:1px;"/>
+        <text x="96.346px" y="699.543px" style="font-family:'Helvetica';font-size:30px;">Guest software emulated as hardware</text>
+    </g>
+    <g>
+        <path d="M1175,650C1175,644.481 1170.52,640 1165,640L1035,640C1029.48,640 1025,644.481 1025,650L1025,730C1025,735.519 1029.48,740 1035,740L1165,740C1170.52,740 1175,735.519 1175,730L1175,650Z" style="fill:rgb(255,241,186);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,634.668,111.133)">
+            <text x="437.244px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Key</text>
+            <text x="434.761px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Map</text>
+        </g>
+        <path d="M980,650C980,644.481 975.519,640 970,640L840,640C834.481,640 830,644.481 830,650L830,730C830,735.519 834.481,740 840,740L970,740C975.519,740 980,735.519 980,730L980,650Z" style="fill:rgb(255,241,186);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <text x="878.669px" y="700.789px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">GUI</text>
+        <path d="M1175,70C1175,64.481 1170.52,60 1165,60L1035,60C1029.48,60 1025,64.481 1025,70L1025,150C1025,155.519 1029.48,160 1035,160L1165,160C1170.52,160 1175,155.519 1175,150L1175,70Z" style="fill:rgb(255,241,186);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,635.046,-465.981)">
+            <text x="408.914px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Handler</text>
+            <text x="398.074px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Schedule</text>
+        </g>
+        <path d="M980,70C980,64.481 975.519,60 970,60L840,60C834.481,60 830,64.481 830,70L830,150C830,155.519 834.481,160 840,160L970,160C975.519,160 980,155.519 980,150L980,70Z" style="fill:rgb(255,241,186);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <text x="862.651px" y="120.583px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Audio</text>
+        <path d="M590,70C590,64.481 585.519,60 580,60L450,60C444.481,60 440,64.481 440,70L440,150C440,155.519 444.481,160 450,160L580,160C585.519,160 590,155.519 590,150L590,70Z" style="fill:rgb(255,241,186);stroke:black;stroke-width:1px;stroke-linecap:butt;"/>
+        <g transform="matrix(1,0,0,1,50.0705,-466.025)">
+            <text x="418.098px" y="567.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">Debug</text>
+            <text x="440.598px" y="606.021px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">CLI</text>
+        </g>
+        <rect x="44.478" y="724.026" width="30" height="30" style="fill:rgb(255,241,186);stroke:black;stroke-width:1px;"/>
+        <text x="96.346px" y="749.543px" style="font-family:'Helvetica';font-size:30px;">Emulator internal</text>
+    </g>
+    <text x="86.809px" y="319.739px" style="font-family:'Helvetica-Bold', 'Helvetica';font-weight:700;font-size:30px;">BUS:</text>
+    <text x="67.627px" y="49.443px" style="font-family:'Helvetica';font-size:30px;">Host OS</text>
+</svg>
