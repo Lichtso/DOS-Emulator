@@ -10,11 +10,11 @@ addons:
         packages:
             - libasound2-dev
 script:
-    cargo build --release
+    - cargo build --release
 before_deploy:
-    mv target/release/dos-emulator dos-emulator
-    strip dos-emulator
-    zip $TRAVIS_OS_NAME.zip dos-emulator config.toml
+    - mv target/release/dos-emulator dos-emulator
+    - strip dos-emulator
+    - zip $TRAVIS_OS_NAME.zip dos-emulator config.toml
 deploy:
     edge: true
     provider: releases

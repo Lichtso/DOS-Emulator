@@ -38,7 +38,7 @@ pub fn fill_lookup_tables(output_sample_rate: u32) {
         let key_scaling_level_template = [64, 32, 24, 19, 16, 12, 11, 10, 8, 6, 5, 4, 3, 2, 1, 0];
         for octave in 0..8 {
             for i in 0..16 {
-                KEY_SCALING_LEVEL_TABLE[octave*16+i] = (octave*8-key_scaling_level_template[i]).max(0) as u8;
+                KEY_SCALING_LEVEL_TABLE[octave*16+i] = ((octave*8) as isize-key_scaling_level_template[i] as isize).max(0) as u8;
             }
         }
         let rate_factor = (1<<ENVELOPE_PHASE_SHIFT) as f32/output_sample_rate as f32*ENVELOPE_CLOCK_FREQUENCY;
@@ -134,7 +134,7 @@ impl Oscillator {
             },
             EnvelopeState::Attack => {
                 self.envelope_phase += self.settings.attack_increment;
-                self.envelope_volume += (!(self.envelope_volume/8))*(self.envelope_phase>>ENVELOPE_PHASE_SHIFT);
+                self.envelope_volume = (self.envelope_volume as i32+(-1-(self.envelope_volume/8) as i32)*(self.envelope_phase>>ENVELOPE_PHASE_SHIFT) as i32) as u32;
                 self.envelope_phase &= ENVELOPE_PHASE_MASK;
                 if self.envelope_volume > ENVELOPE_MAX {
                     self.envelope_volume = 0;
@@ -176,8 +176,8 @@ impl Oscillator {
 
     fn calculate_sample(&mut self, lfo: &LowFrequencyOscillator, mut volume: u32, phase: i32) -> i32 {
         let silent = volume >= SICLENCE_THRESHOLD;
-        let vibrato_value = ((self.settings.vibrato>>lfo.vibrato_shift)^lfo.vibrato_sign_mask)-lfo.vibrato_sign_mask;
-        self.phase = self.phase.wrapping_add(self.settings.phase_increment+vibrato_value);
+        let vibrato_value = ((self.settings.vibrato>>lfo.vibrato_shift)^lfo.vibrato_sign_mask) as i32-lfo.vibrato_sign_mask as i32;
+        self.phase = (self.phase as i32).wrapping_add(self.settings.phase_increment as i32+vibrato_value) as u32;
         volume += lfo.tremolo_value*(self.settings.tremolo_enabled as u32);
         let signal = calculate_sample(self.settings.waveform, (volume as i32)<<3, phase&PHASE_MASK);
         if silent { 0 } else { signal }
@@ -344,7 +344,7 @@ macro_rules! fill_buffer {
     ($cpu:ident, $bus:ident, $audio_renderer:ident, $buffer:ident, $signal:ident, $T:ty, $($convert:tt)*) => {
         let sample_count = $buffer.len()/$audio_renderer.output_channels;
         $audio_renderer.clock_cycles_per_sample = (CLOCK_FREQUENCY_FACTOR as f64*$bus.config.timing.clock_frequency/$audio_renderer.output_sample_rate as f64) as u64;
-        $audio_renderer.cycle_counter = CLOCK_FREQUENCY_FACTOR*$cpu.cycle_counter-$audio_renderer.clock_cycles_per_sample*sample_count as u64;
+        $audio_renderer.cycle_counter = (CLOCK_FREQUENCY_FACTOR as i64*$cpu.cycle_counter as i64-$audio_renderer.clock_cycles_per_sample as i64*sample_count as i64).max(0) as u64;
         if $cpu.execution_state != crate::cpu::ExecutionState::Running {
             for element in $buffer.iter_mut() {
                 let $signal: i16 = 0;
