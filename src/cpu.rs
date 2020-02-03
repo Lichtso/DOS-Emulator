@@ -379,7 +379,7 @@ impl CPU {
             self.instruction.position = address as u16;
         } else {
             self.flags = self.pop_from_stack(bus);
-            crate::bios::BIOS::from_ram(&mut bus.ram).handle_call(self, &mut bus.pic, &mut bus.ps2_controller, address as u16);
+            crate::bios::BIOS::from_ram(&mut bus.ram).handle_call(self, &mut bus.pic, &mut bus.ps2_controller, &mut bus.vga, address as u16);
         }
     }
 

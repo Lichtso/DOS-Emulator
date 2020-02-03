@@ -107,7 +107,7 @@ pub struct KeyLayout {
     pub position_y: u8
 }
 
-const KEY_LAYOUT: [KeyLayout; 96] = [
+static KEY_LAYOUT: &'static [KeyLayout] = &[
     KeyLayout { render_colum: 0, render_row: 0, position_x: 0xFF, position_y: 0xFF },
     KeyLayout { render_colum: 125, render_row: 3, position_x: 19, position_y: 0 },
     KeyLayout { render_colum: 23, render_row: 3, position_x: 3, position_y: 0 },
@@ -206,7 +206,7 @@ const KEY_LAYOUT: [KeyLayout; 96] = [
     KeyLayout { render_colum: 105, render_row: 3, position_x: 16, position_y: 0 }
 ];
 
-const BACKGROUND: [&'static str; 21] = [
+static BACKGROUND: &'static [&'static str] = &[
     "┌─────┬─────┐ ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬───────┐ ┌─────┬─────┬─────┐ ┌─────┬─────┬─────┬─────┐",
     "│ F1  │ F2  │ │  `  │  1  │  2  │  3  │  4  │  5  │  6  │  7  │  8  │  9  │  0  │  -  │  =  │   ⌫   │ │ INS │  ↖  │  ⇞  │ │ ESC │ NUM │ SCR │ SYS │",
     "│     │     │ │     │     │     │     │     │     │     │     │     │     │     │     │     │       │ │     │     │     │ │     │     │     │     │",
@@ -222,12 +222,7 @@ const BACKGROUND: [&'static str; 21] = [
     "├─────┼─────┤ ├───────┬───┴──┬──┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┼─────┬───────┤ ┌─────┼─────┼─────┐ ├─────┴─────┼─────┤     │",
     "│ F9  │ F10 │ │  ALT  │      │                         SPACE                          │     │   ⇪   │ │  ←  │  ↓  │  →  │ │  0        │  .  │     │",
     "│     │     │ │       │      │                                                        │     │       │ │     │     │     │ │           │     │     │",
-    "└─────┴─────┘ └───────┘      └────────────────────────────────────────────────────────┘     └───────┘ └─────┴─────┴─────┘ └───────────┴─────┴─────┘",
-    "",
-    "Type here to control the keybinding process and type in the video window to enter a scancode at the selection.",
-    "Escape: Leave the keyboard-mapping-tool",
-    "Arrow Keys: Navigate / select",
-    "Backspace: Unregister selected entry"
+    "└─────┴─────┘ └───────┘      └────────────────────────────────────────────────────────┘     └───────┘ └─────┴─────┴─────┘ └───────────┴─────┴─────┘"
 ];
 
 pub struct KeyboardMapping {
@@ -261,7 +256,7 @@ impl KeyboardMapping {
         }
     }
 
-    pub fn handle_gui_key(&mut self, cpu: &mut crate::cpu::CPU, bus: &mut crate::bus::BUS, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, scancode: u8, pressed: bool) {
+    pub fn handle_gui_key(&mut self, cpu: &mut crate::cpu::CPU, bus: &mut crate::bus::BUS, scancode: u8, pressed: bool) {
         if !self.mapping_tool_is_active {
             let mut keycode = self.keycode_translation[scancode as usize] as u8&0x7F;
             if !pressed {
@@ -271,36 +266,36 @@ impl KeyboardMapping {
             return;
         }
         if pressed {
-            self.set_scancode_of_keycode(stdout, self.selected_keycode, scancode, false);
+            self.set_scancode_of_keycode(self.selected_keycode, scancode, false);
             let mut is_next = false;
             for keycode in Keycode::iter() {
                 if self.selected_keycode == keycode {
                     is_next = true;
                 } else if is_next {
-                    self.set_selection(stdout, keycode);
+                    self.set_selection(keycode);
                     break;
                 }
             }
         }
     }
 
-    pub fn handle_cli_key(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, key: termion::event::Key) {
+    pub fn handle_cli_key(&mut self, cpu: &mut crate::cpu::CPU, key: termion::event::Key) {
         match key {
-            termion::event::Key::Esc => { self.deactivate(stdout); },
+            termion::event::Key::Esc => { self.deactivate(cpu); },
             termion::event::Key::Backspace => {
-                self.set_scancode_of_keycode(stdout, self.selected_keycode, 0, true);
+                self.set_scancode_of_keycode(self.selected_keycode, 0, true);
             },
             termion::event::Key::Left => {
-                self.navigate(stdout, 0, -1, 0);
+                self.navigate(0, -1, 0);
             },
             termion::event::Key::Right => {
-                self.navigate(stdout, 0, 1, 22);
+                self.navigate(0, 1, 22);
             },
             termion::event::Key::Up => {
-                self.navigate(stdout, 1, -1, 0);
+                self.navigate(1, -1, 0);
             },
             termion::event::Key::Down => {
-                self.navigate(stdout, 1, 1, 4);
+                self.navigate(1, 1, 4);
             },
             _ => {}
         }
@@ -324,28 +319,28 @@ impl KeyboardMapping {
         return Keycode::None;
     }
 
-    fn set_selection(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, keycode: Keycode) {
+    fn set_selection(&mut self, keycode: Keycode) {
         let prev_selected_keycode = self.selected_keycode;
         self.selected_keycode = keycode;
-        self.render_key_field(stdout, prev_selected_keycode);
-        self.render_key_field(stdout, self.selected_keycode);
-        stdout.flush().unwrap();
+        self.render_key_field(prev_selected_keycode);
+        self.render_key_field(self.selected_keycode);
+        std::io::stdout().flush().unwrap();
     }
 
-    fn navigate(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, dimension: u8, direction: i8, limit: u8) {
+    fn navigate(&mut self, dimension: u8, direction: i8, limit: u8) {
         let key_layout = Self::get_layout_of_keycode(self.selected_keycode);
         let mut position = if dimension == 0 { key_layout.position_x } else { key_layout.position_y };
         while (direction == -1 && position > 0) || (direction == 1 && position < limit) {
             position = (position as i8+direction) as u8;
             let keycode = if dimension == 0 { self.get_key_layout_at_position(position, key_layout.position_y) } else { self.get_key_layout_at_position(key_layout.position_x, position) };
             if keycode != Keycode::None {
-                self.set_selection(stdout, keycode);
+                self.set_selection(keycode);
                 break;
             }
         }
     }
 
-    fn set_scancode_of_keycode(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, keycode: Keycode, new_scancode: u8, reset: bool) {
+    fn set_scancode_of_keycode(&mut self, keycode: Keycode, new_scancode: u8, reset: bool) {
         loop {
             match self.keycode_translation.iter().position(|value| *value == keycode) {
                 Some(scancode) => { self.keycode_translation[scancode as usize] = Keycode::None; },
@@ -355,13 +350,13 @@ impl KeyboardMapping {
         if !reset {
             let prev_keycode = self.keycode_translation[new_scancode as usize];
             self.keycode_translation[new_scancode as usize] = keycode;
-            self.render_key_field(stdout, prev_keycode);
+            self.render_key_field(prev_keycode);
         }
-        self.render_key_field(stdout, keycode);
-        stdout.flush().unwrap();
+        self.render_key_field(keycode);
+        std::io::stdout().flush().unwrap();
     }
 
-    fn render_key_field(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>, keycode: Keycode) {
+    fn render_key_field(&mut self, keycode: Keycode) {
         let key_layout = Self::get_layout_of_keycode(keycode);
         if key_layout.position_x == 0xFF && key_layout.position_y == 0xFF {
             return;
@@ -371,35 +366,35 @@ impl KeyboardMapping {
             None => "   ".to_string()
         };
         if self.selected_keycode == keycode {
-            write!(stdout, "{}{}{}{}", termion::cursor::Goto(key_layout.render_colum as u16, key_layout.render_row as u16), termion::style::Invert, scancode_str, termion::style::Reset).unwrap();
+            print!("{}{}{}{}", termion::cursor::Goto(key_layout.render_colum as u16, key_layout.render_row as u16), termion::style::Invert, scancode_str, termion::style::Reset);
         } else {
-            write!(stdout, "{}{}", termion::cursor::Goto(key_layout.render_colum as u16, key_layout.render_row as u16), scancode_str).unwrap();
+            print!("{}{}", termion::cursor::Goto(key_layout.render_colum as u16, key_layout.render_row as u16), scancode_str);
         }
     }
 
-    pub fn activate(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+    pub fn activate(&mut self, cpu: &mut crate::cpu::CPU) {
         if self.mapping_tool_is_active {
             return;
         }
         self.mapping_tool_is_active = true;
-        stdout.activate_raw_mode().unwrap();
-        write!(stdout, "{}{}{}", termion::cursor::Hide, termion::cursor::Goto(1, 1), termion::clear::All).unwrap();
+        cpu.execution_state = crate::cpu::ExecutionState::Paused;
+        print!("{}{}", termion::cursor::Goto(1, 1), termion::clear::All);
         for row in 0..BACKGROUND.len() {
-            write!(stdout, "{}{}", termion::cursor::Goto(1, 1+row as u16), BACKGROUND[row]).unwrap();
+            println!("{}", BACKGROUND[row]);
         }
         for keycode in Keycode::iter() {
-            self.render_key_field(stdout, keycode);
+            self.render_key_field(keycode);
         }
-        stdout.flush().unwrap();
+        std::io::stdout().flush().unwrap();
     }
 
-    pub fn deactivate(&mut self, stdout: &mut termion::raw::RawTerminal<std::io::Stdout>) {
+    pub fn deactivate(&mut self, cpu: &mut crate::cpu::CPU) {
         if !self.mapping_tool_is_active {
             return;
         }
         self.mapping_tool_is_active = false;
-        write!(stdout, "{}{}{}", termion::cursor::Goto(1, 1), termion::clear::All, termion::cursor::Show).unwrap();
-        stdout.suspend_raw_mode().unwrap();
-        stdout.flush().unwrap();
+        cpu.execution_state = crate::cpu::ExecutionState::Running;
+        print!("{}{}", termion::cursor::Goto(1, 1), termion::clear::All);
+        std::io::stdout().flush().unwrap();
     }
 }

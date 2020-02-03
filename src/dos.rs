@@ -145,7 +145,7 @@ impl DiskOperatingSystem {
         unsafe { &mut *std::mem::transmute::<*mut u8, *mut ProgramSegmentPrefix>(&mut ram[psp_segment << 4] as *mut u8) }
     }
 
-    pub fn load_executable(&mut self, cpu: &mut crate::cpu::CPU, ram: &mut [u8], executable_path: &std::path::Path) -> std::io::Result<()> {
+    pub fn load_executable(&mut self, cpu: &mut crate::cpu::CPU, ram: &mut [u8], executable_path: &std::path::Path, environments: std::vec::Vec<&str>, arguments: &str) -> std::io::Result<()> {
         let mut file = std::fs::File::open(executable_path)?;
         let mut mz_dos: MZDOS = unsafe { mem::zeroed() };
         unsafe {
@@ -218,21 +218,30 @@ impl DiskOperatingSystem {
             psp.fcb1_extension = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
             psp.fcb1 = [0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00];
             psp.fcb2 = [0x00, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-            psp.parameter_length = 0x00;
+            psp.parameter_length = arguments.len() as u8;
+            psp.parameter[0..arguments.len()].copy_from_slice(arguments.as_bytes());
             psp.parameter[psp.parameter_length as usize] = 0x0D;
             let path = std::path::Path::new("C:").join(executable_path.strip_prefix(&self.mount_point_c).unwrap()).to_str().unwrap().replace("/", "\\");
-            let mut environment = "\0\0\x01\0".to_string();
-            environment.push_str(path.as_str());
-            let environment_data = environment.as_bytes();
-            let environment_address = crate::bus::BUS::physical_address(psp.environment_segment, 0);
-            ram[environment_address..environment_address+environment_data.len()].copy_from_slice(environment_data);
+            let mut environment_segment = std::string::String::new();
+            for environment in environments {
+                environment_segment.push_str(environment);
+                environment_segment.push(0 as char);
+            }
+            environment_segment.push_str("\0\x01\0");
+            environment_segment.push_str(path.as_str());
+            let environment_segment_data = environment_segment.as_bytes();
+            let environment_segment_address = crate::bus::BUS::physical_address(psp.environment_segment, 0);
+            ram[environment_segment_address..environment_segment_address+environment_segment_data.len()].copy_from_slice(environment_segment_data);
         }
         // Setup BIOS
         crate::bios::BIOS::from_ram(ram).setup();
         // Setup Interrupt Vector
         let interrupt_vector = unsafe { crate::bit_utils::transmute_slice_mut::<u8, u32>(&mut ram[0..]) };
-        interrupt_vector[8] = 0xF000FEA5;
-        interrupt_vector[9] = 0xF000E987;
+        interrupt_vector[0x08] = 0xF000FEA5;
+        interrupt_vector[0x09] = 0xF000E987;
+        interrupt_vector[0x10] = 0xF000F065;
+        interrupt_vector[0x11] = 0xF000F84D;
+        interrupt_vector[0x1A] = 0xF000FE6E;
         Ok(())
     }
 
@@ -261,12 +270,13 @@ impl DiskOperatingSystem {
         return None;
     }
 
-    pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, ram: &mut [u8]) {
+    pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, ram: &mut [u8], terminate: &mut bool) {
         let argument = cpu.get_register(Operand::AL);
         match cpu.get_register(Operand::AH) {
             0x00 => { // Exit
                 println!("DOS ({}): Exit", cpu.cycle_counter);
-                std::process::exit(0);
+                cpu.execution_state = crate::cpu::ExecutionState::Paused;
+                *terminate = true;
             },
             0x07 => { // Direct Character Input (No Echo)
                 let bios = crate::bios::BIOS::from_ram(ram);
@@ -386,9 +396,7 @@ impl DiskOperatingSystem {
                     cpu.set_register(Operand::AX, 4); // Too many open files (no handles available)
                     return;
                 }
-                access_path!(get_path!(self, cpu, ram), cpu, _result, "Delete File", std::fs::remove_file, {
-
-                });
+                access_path!(get_path!(self, cpu, ram), cpu, _result, "Delete File", std::fs::remove_file, {});
             },
             0x42 => { // Seek In File
                 cpu.set_flag(Flag::Carry, 1);
@@ -421,7 +429,7 @@ impl DiskOperatingSystem {
                 cpu.set_register(Operand::AX, cpu.get_register(Operand::DX));
                 println!("FS ({}): Get Device Information fd={}", cpu.cycle_counter, cpu.get_register(Operand::BX));
                 if cpu.get_register(Operand::BX) >= 2 {
-                    std::process::exit(0);
+                    panic!("FS ({}): Unsupported fd={}", cpu.cycle_counter, cpu.get_register(Operand::BX));
                 }
             },
             0x48 => { // Allocate Memory

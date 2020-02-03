@@ -1,4 +1,4 @@
-use crate::machinecode::Operand;
+use chrono::prelude::*;
 
 static KEYCODE_TO_ASCII: &'static [u16] = &[
       0x0000, 0x0000, 0x0000, 0x0000,
@@ -213,11 +213,57 @@ impl BIOS {
         Some(keycode)
     }
 
-    pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, vga: &mut crate::vga::VideoGraphicsArray, interrupt: u8) {
-        match interrupt {
-            0x10 => {
-                let command = cpu.get_register(Operand::AH) as u8;
-                let argument = cpu.get_register(Operand::AL) as u8;
+    pub fn handle_call(&mut self, cpu: &mut crate::cpu::CPU, pic: &mut crate::pic::ProgrammableInterruptController, ps2_controller: &mut crate::ps2_controller::PS2Controller, vga: &mut crate::vga::VideoGraphicsArray, address: u16) {
+        match address {
+            0xFEA5 => {}, // 0x08 (IRQ0)
+            0xE987 => { // 0x09 (IRQ1)
+                let keycode = ps2_controller.read_from_port(cpu.cycle_counter, 0x60);
+                let lookup_index = keycode as usize*4+
+                    if self.keyboard_flags1&0x08 != 0 { 3 } else
+                    if self.keyboard_flags1&0x04 != 0 { 2 } else
+                    if self.keyboard_flags1&0x03 != 0 { 1 } else
+                    { 0 };
+                match keycode {
+                    0x1D => { // Ctrl Pressed
+                        self.keyboard_flags1 |= 0x04;
+                    },
+                    0x9D => { // Ctrl Released
+                        self.keyboard_flags1 &= !0x04;
+                    },
+                    0x2A => { // LShift Pressed
+                        self.keyboard_flags1 |= 0x02;
+                    },
+                    0xAA => { // LShift Released
+                        self.keyboard_flags1 &= !0x02;
+                    },
+                    0x36 => { // RShift Pressed
+                        self.keyboard_flags1 |= 0x01;
+                    },
+                    0xB6 => { // RShift Released
+                        self.keyboard_flags1 &= !0x01;
+                    },
+                    0x38 => { // Alt Pressed
+                        self.keyboard_flags1 |= 0x08;
+                    },
+                    0xB8 => { // Alt Released
+                        self.keyboard_flags1 &= !0x08;
+                    },
+                    0xE0 => { // Extended Key
+                        self.keyboard_flags3 |= 0x02;
+                    },
+                    0x01..=0x58 => {
+                        self.keyboard_buffer_push(cpu.cycle_counter, KEYCODE_TO_ASCII[lookup_index]);
+                    },
+                    _ => {}
+                }
+                if keycode != 0xE0 {
+                    self.keyboard_flags3 &= !0x02;
+                }
+                pic.write_to_port(cpu.cycle_counter, 0x20, 0x61);
+            },
+            0xF065 => { // 0x10
+                let command = cpu.get_register(crate::machinecode::Operand::AH) as u8;
+                let argument = cpu.get_register(crate::machinecode::Operand::AL) as u8;
                 match command {
                     0x00 => {
                         match VIDEO_MODES.iter().position(|video_mode| video_mode.index == argument as u16) {
@@ -273,8 +319,8 @@ impl BIOS {
                     }
                 }
             },
-            0x11 => {
-                cpu.set_register(Operand::AX, 0xD426); // 1101 0100 0010 0110
+            0xF84D => { // 0x11
+                cpu.set_register(crate::machinecode::Operand::AX, 0xD426); // 1101 0100 0010 0110
                 //   80x87 coprocessor installed
                 //   pointing device installed
                 // > initial video mode: 80x25 color
@@ -283,66 +329,20 @@ impl BIOS {
                 //   number of parallel ports installed: 3
                 println!("BIOS ({}): Get Equipment List", cpu.cycle_counter);
             },
-            // 0x13 // Disk
-            // 0x16 // Get Keystroke
-            // 0x2A // Network
-            0x33 => {
-                println!("BIOS ({}): Mouse command={}", cpu.cycle_counter, cpu.get_register(Operand::AX));
-                cpu.set_register(Operand::AX, 0); // Mouse driver not installed
-            },
-            _ => {
-                panic!();
-            }
-        }
-    }
-
-    pub fn handle_call(&mut self, cpu: &mut crate::cpu::CPU, pic: &mut crate::pic::ProgrammableInterruptController, ps2_controller: &mut crate::ps2_controller::PS2Controller, address: u16) {
-        match address {
-            0xFEA5 => {}, // INT8 (IRQ0)
-            0xE987 => { // INT9 (IRQ1)
-                let keycode = ps2_controller.read_from_port(cpu.cycle_counter, 0x60);
-                let lookup_index = keycode as usize*4+
-                    if self.keyboard_flags1&0x08 != 0 { 3 } else
-                    if self.keyboard_flags1&0x04 != 0 { 2 } else
-                    if self.keyboard_flags1&0x03 != 0 { 1 } else
-                    { 0 };
-                match keycode {
-                    0x1D => { // Ctrl Pressed
-                        self.keyboard_flags1 |= 0x04;
+            0xFE6E => { // 0x1A
+                let command = cpu.get_register(crate::machinecode::Operand::AH);
+                match command {
+                    0x00 => {
+                        let now = chrono::Local::now();
+                        let time = ((now.hour()*3600+now.minute()*60+now.second()) as u64)*1573040/86400;
+                        cpu.set_register(crate::machinecode::Operand::CX, (time>>16) as u16);
+                        cpu.set_register(crate::machinecode::Operand::BX, time as u16);
+                        println!("BIOS ({}): Get System Time", cpu.cycle_counter);
                     },
-                    0x9D => { // Ctrl Released
-                        self.keyboard_flags1 &= !0x04;
-                    },
-                    0x2A => { // LShift Pressed
-                        self.keyboard_flags1 |= 0x02;
-                    },
-                    0xAA => { // LShift Released
-                        self.keyboard_flags1 &= !0x02;
-                    },
-                    0x36 => { // RShift Pressed
-                        self.keyboard_flags1 |= 0x01;
-                    },
-                    0xB6 => { // RShift Released
-                        self.keyboard_flags1 &= !0x01;
-                    },
-                    0x38 => { // Alt Pressed
-                        self.keyboard_flags1 |= 0x08;
-                    },
-                    0xB8 => { // Alt Released
-                        self.keyboard_flags1 &= !0x08;
-                    },
-                    0xE0 => { // Extended Key
-                        self.keyboard_flags3 |= 0x02;
-                    },
-                    0x01..=0x58 => {
-                        self.keyboard_buffer_push(cpu.cycle_counter, KEYCODE_TO_ASCII[lookup_index]);
-                    },
-                    _ => {}
+                    _ => {
+                        println!("BIOS ({}): Unsupported System Time command={}", cpu.cycle_counter, command);
+                    }
                 }
-                if keycode != 0xE0 {
-                    self.keyboard_flags3 &= !0x02;
-                }
-                pic.write_to_port(cpu.cycle_counter, 0x20, 0x61);
             },
             _ => {
                 println!("BIOS ({}): Unsupported call to address=0xF{:04X}", cpu.cycle_counter, address);

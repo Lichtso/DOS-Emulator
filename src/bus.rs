@@ -1,7 +1,3 @@
-use chrono::prelude::*;
-
-
-
 #[allow(dead_code)]
 #[derive(Copy, Clone, PartialEq, Eq, Display)]
 pub enum HandlerScheduleEntryKind {
@@ -89,15 +85,21 @@ pub struct BUS {
     pub sound_blaster: crate::sound_blaster::SoundBlaster,
     pub vga: crate::vga::VideoGraphicsArray,
     pub dos: crate::dos::DiskOperatingSystem,
+
+    // Emulator Internal
     pub handler_schedule: HandlerSchedule,
     pub audio_event_dst: std::sync::mpsc::Sender<crate::audio::AudioEvent>,
     pub audio_event_src: std::sync::mpsc::Receiver<crate::audio::AudioEvent>,
-    pub config: crate::config::Config
+    pub input_event_dst: std::sync::mpsc::Sender<crate::gui::InputEvent>,
+    pub input_event_src: std::sync::mpsc::Receiver<crate::gui::InputEvent>,
+    pub config: crate::config::Config,
+    pub terminate: bool
 }
 
 impl BUS {
     pub fn new() -> Self {
-        let (sender, receiver) = std::sync::mpsc::channel();
+        let (audio_event_dst, audio_event_src) = std::sync::mpsc::channel();
+        let (input_event_dst, input_event_src) = std::sync::mpsc::channel();
         let mut bus = Self {
             rom: [0, 0, 0, 0],
             ram: Vec::with_capacity(0xA0000),
@@ -108,13 +110,16 @@ impl BUS {
             vga: crate::vga::VideoGraphicsArray::new(),
             dos: crate::dos::DiskOperatingSystem::new(),
             handler_schedule: HandlerSchedule::new(),
-            audio_event_dst: sender,
-            audio_event_src: receiver,
+            audio_event_dst: audio_event_dst,
+            audio_event_src: audio_event_src,
+            input_event_dst: input_event_dst,
+            input_event_src: input_event_src,
             config: crate::config::Config {
                 timing: unsafe { std::mem::zeroed() },
                 audio: unsafe { std::mem::zeroed() },
                 keymap: toml::value::Table::new()
-            }
+            },
+            terminate: false
         };
         bus.ram.resize(bus.ram.capacity(), 0);
         bus
@@ -198,32 +203,22 @@ impl BUS {
 
     pub fn handle_interrupt(&mut self, cpu: &mut crate::cpu::CPU, interrupt: u8) -> bool {
         match interrupt {
-            0x10 | 0x11 | 0x16 | 0x33 => {
-                crate::bios::BIOS::from_ram(&mut self.ram).handle_interrupt(cpu, &mut self.vga, interrupt);
-                true
-            },
-            0x1A => match cpu.get_register(crate::machinecode::Operand::AX)>>8 {
-                0x00 => {
-                    let now = chrono::Local::now();
-                    let time = ((now.hour()*3600+now.minute()*60+now.second()) as u64)*1573040/86400;
-                    cpu.set_register(crate::machinecode::Operand::CX, (time>>16) as u16);
-                    cpu.set_register(crate::machinecode::Operand::BX, time as u16);
-                    println!("Clock ({}): Get System Time", cpu.cycle_counter);
-                    true
-                },
-                _ => false
-            },
             0x20 => {
                 println!("DOS ({}): Exit", cpu.cycle_counter);
-                std::process::exit(0);
-            },
-            0x21 => {
-                self.dos.handle_interrupt(cpu, &mut self.ram);
+                cpu.execution_state = crate::cpu::ExecutionState::Paused;
+                self.terminate = true;
                 true
             },
-            _ => {
-                panic!("BUS ({}): Unsupported interrupt={:#02X} AX={:04X} ip/pc={:04X}:{:04X}", cpu.cycle_counter, interrupt, cpu.get_register(crate::machinecode::Operand::AX), cpu.get_register(crate::machinecode::Operand::CS), cpu.instruction.position-cpu.instruction.length as u16);
-            }
+            0x21 => {
+                self.dos.handle_interrupt(cpu, &mut self.ram, &mut self.terminate);
+                true
+            },
+            0x33 => {
+                println!("Mouse ({}): Unsupported command={}", cpu.cycle_counter, cpu.get_register(crate::machinecode::Operand::AX));
+                cpu.set_register(crate::machinecode::Operand::AX, 0); // Mouse driver not installed
+                true
+            },
+            _ => false
         }
     }
 

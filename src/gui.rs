@@ -60,7 +60,7 @@ pub enum InputEvent {
 const SCALE_WIDTH: f32 = 1.0;
 const SCALE_HEIGHT: f32 = 1.37;
 
-pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: usize) {
+pub fn run_loop(bus_ptr: usize) {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new().with_visible(false).with_resizable(false);
     let windowed_context = glutin::ContextBuilder::new().build_windowed(window_builder, &event_loop).unwrap();
@@ -156,22 +156,22 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: usize) {
                 }
                 windowed_context.swap_buffers().unwrap();
             },
-            Event::LoopDestroyed => return,
+            Event::LoopDestroyed => loop {},
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
                     *control_flow = glutin::event_loop::ControlFlow::Exit;
-                    sender.send(InputEvent::Termination).unwrap();
+                    bus.input_event_dst.send(InputEvent::Termination).unwrap();
                 },
                 WindowEvent::KeyboardInput { input, .. } => {
                     match input.state {
                         glutin::event::ElementState::Pressed => {
                             if pressed_keys.insert(input.scancode) {
-                                sender.send(InputEvent::Key(input.scancode as u8, true)).unwrap();
+                                bus.input_event_dst.send(InputEvent::Key(input.scancode as u8, true)).unwrap();
                             }
                         },
                         glutin::event::ElementState::Released => {
                             if pressed_keys.remove(&input.scancode) {
-                                sender.send(InputEvent::Key(input.scancode as u8, false)).unwrap();
+                                bus.input_event_dst.send(InputEvent::Key(input.scancode as u8, false)).unwrap();
                             }
                         }
                     }
@@ -183,13 +183,13 @@ pub fn run_loop(sender: std::sync::mpsc::Sender<InputEvent>, bus_ptr: usize) {
                         glutin::event::MouseButton::Middle => 2,
                         glutin::event::MouseButton::Other(index) => 3+index
                     };
-                    sender.send(InputEvent::MouseButton(button_index, state == glutin::event::ElementState::Pressed)).unwrap();
+                    bus.input_event_dst.send(InputEvent::MouseButton(button_index, state == glutin::event::ElementState::Pressed)).unwrap();
                 },
                 WindowEvent::CursorMoved { position, .. } => {
-                    sender.send(InputEvent::MouseMove(position.x, position.y)).unwrap();
+                    bus.input_event_dst.send(InputEvent::MouseMove(position.x, position.y)).unwrap();
                 },
                 WindowEvent::Focused(focused) => {
-                    sender.send(InputEvent::Focus(focused)).unwrap();
+                    bus.input_event_dst.send(InputEvent::Focus(focused)).unwrap();
                 },
                 _ => ()
             },
