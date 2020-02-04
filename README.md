@@ -9,17 +9,22 @@ The goal was just to implement enough to play one of my favorite games
 and learn some rust and emulation principles along the way.
 
 ### Run the Example
+Checkout and build the emulator or download a prebuilt binary from the releases tab.
 ```bash
 git clone https://github.com/Lichtso/DOS-Emulator
 cd DOS-Emulator
 cargo build --release
+```
+
+Download and unpack the guest application and start the emulator.
+```bash
 curl -GOL https://cors.archive.org/cors/msdos_Robot_Junior_1991/Robot_Junior_1991.zip
 mkdir -p DOS/TOM/ROBJUN
 unzip -j Robot_Junior_1991.zip RobotJun/ROBJUN.EXE RobotJun/ROBJUN.MUC RobotJun/ROBJUN.SCN RobotJun/ITEMJE.CRN RobotJun/ITEMJG.CRN RobotJun/SASJ.CRN -d DOS/TOM/ROBJUN/
 target/release/dos-emulator -C DOS/ DOS/TOM/ROBJUN/ROBJUN.EXE
 ```
 
-Then setup your keyboard layout (see instructions below) and enjoy the game!
+Then setup your keyboard layout (press 'k' in the CLI and follow instructions below) and enjoy the game!
 
 
 ## Command Line Interface
@@ -28,6 +33,7 @@ Then setup your keyboard layout (see instructions below) and enjoy the game!
 * k: Enter the keyboard-mapping-tool
 
 ### Debugger
+Note: The terminal needs to be at least 80 characters wide to correctly display the debugger.
 * p: Profile instructions (and save them to a file)
 * a: Data overview to DS:SI (string source)
 * s: Data overview to SS:SP (stack pointer)
@@ -40,9 +46,11 @@ Then setup your keyboard layout (see instructions below) and enjoy the game!
 ### Keyboard-Mapping-Tool
 ![Keyboard-Mapping-Tool](https://raw.githubusercontent.com/Lichtso/DOS-Emulator/gallery/keyboard-mapping-tool.png)
 Type in the CLI to control the keybinding process and type in the video window to register a scancode at the selection.
+The tool will automatically advance the selection to the next entry so you can continuously type in the keys it highlights.
+Note: The terminal needs to be at least 147 characters wide to correctly display the tool.
 * Escape: Leave the keyboard-mapping-tool
 * Arrows: Navigate / select
-* Backspace: Unregister selected entry
+* Backspace: Unregister the selected entry
 
 
 ## Supported Software
@@ -65,7 +73,7 @@ In release mode on a 2,6 GHz Intel Core i7 the emulation does 10 to 19 (up to 23
 As this is much faster than the original hardware was, the emulation is done in batches with sleeps in between,
 in order to have a consistent timing behavior and not burn the host CPU unnecessarily.
 This way about 45% of one host CPU core and 32 MiB of RAM are used.
-The emulator executable is about 1.5 MiB (stripped on macOS) and the code base 5 KLoC (without lookup tables and bindings).
+The the code base is about 5 KLoC of rust (without lookup tables and bindings).
 Some threads read data from others using raw pointers which is definitely not the rust way but an easy workaround.
 
 
