@@ -73,7 +73,7 @@ In release mode on a 2,6 GHz Intel Core i7 the emulation does 10 to 19 (up to 23
 As this is much faster than the original hardware was, the emulation is done in batches with sleeps in between,
 in order to have a consistent timing behavior and not burn the host CPU unnecessarily.
 This way about 45% of one host CPU core and 32 MiB of RAM are used.
-The the code base is about 5 KLoC of rust (without lookup tables and bindings).
+The code base is about 5 KLoC of rust (without lookup tables and bindings).
 Some threads read data from others using raw pointers which is definitely not the rust way but an easy workaround.
 
 
