@@ -60,22 +60,30 @@ fn main() {
             .help("Executable file to run, must be inside the mounting of C:")
             .required(true)
             .index(1))
+        .arg(clap::Arg::with_name("disassemble")
+            .long("disasm")
+            .help("disassemble the executable and quit"))
         .get_matches();
     let mut cpu = Box::new(crate::cpu::CPU::new());
     let mut bus = Box::new(crate::bus::BUS::new());
     cpu.interrupt_breakpoints[1] = true;
     cpu.interrupt_breakpoints[3] = true;
     let config_path = matches.value_of("config").map_or(std::path::Path::new("config.toml").to_path_buf(), |v| std::path::Path::new(v).to_path_buf());
+    let executable_path = std::path::Path::new(matches.value_of("executable").unwrap());
     bus.config = toml::from_str(std::fs::read_to_string(&config_path).unwrap().as_str()).unwrap();
     bus.dos.mount_point_c = matches.value_of("path C").map_or(std::env::current_dir().unwrap(), |v| std::path::Path::new(v).to_path_buf());
-    bus.dos.load_executable(&mut cpu, &mut bus.ram,
-        std::path::Path::new(matches.value_of("executable").unwrap()),
+    bus.dos.load_executable(&mut cpu, &mut bus.ram, executable_path).unwrap();
+    if matches.is_present("disassemble") {
+        crate::disassembler::disassemble(&mut bus.ram, crate::bus::BUS::physical_address(cpu.get_register(crate::machinecode::Operand::CS), cpu.instruction.position) as u32);
+        std::process::exit(0);
+    }
+    bus.dos.set_environment_and_arguments(&mut bus.ram, executable_path,
         match matches.values_of("environment") {
             Some(environments) => environments.collect(),
             None => vec![""]
         },
         matches.value_of("arguments").unwrap_or("")
-    ).unwrap();
+    );
     let clock_frequency = bus.config.timing.clock_frequency;
     let cpu_cycles_per_compensation_interval = (clock_frequency/bus.config.timing.compensation_frequency) as u64;
     let cpu_ptr = { &mut *cpu as *mut crate::cpu::CPU as usize };

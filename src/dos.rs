@@ -145,7 +145,7 @@ impl DiskOperatingSystem {
         unsafe { &mut *std::mem::transmute::<*mut u8, *mut ProgramSegmentPrefix>(&mut ram[psp_segment << 4] as *mut u8) }
     }
 
-    pub fn load_executable(&mut self, cpu: &mut crate::cpu::CPU, ram: &mut [u8], executable_path: &std::path::Path, environments: std::vec::Vec<&str>, arguments: &str) -> std::io::Result<()> {
+    pub fn load_executable(&mut self, cpu: &mut crate::cpu::CPU, ram: &mut [u8], executable_path: &std::path::Path) -> std::io::Result<()> {
         let mut file = std::fs::File::open(executable_path)?;
         let mut mz_dos: MZDOS = unsafe { mem::zeroed() };
         unsafe {
@@ -192,6 +192,10 @@ impl DiskOperatingSystem {
                 crate::bit_utils::write_to_buffer_u16(&mut ram[address..], value+self.load_segment as u16);
             }
         }
+        Ok(())
+    }
+
+    pub fn set_environment_and_arguments(&mut self, ram: &mut [u8], executable_path: &std::path::Path, environments: std::vec::Vec<&str>, arguments: &str) {
         // Setup Environment
         {
             let psp = Self::get_psp(self.psp_segment as usize, ram);
@@ -242,7 +246,6 @@ impl DiskOperatingSystem {
         interrupt_vector[0x10] = 0xF000F065;
         interrupt_vector[0x11] = 0xF000F84D;
         interrupt_vector[0x1A] = 0xF000FE6E;
-        Ok(())
     }
 
     fn find_next_directory_entry<'a>(&mut self, pattern: &'a str) -> Option<std::path::PathBuf> {

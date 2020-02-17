@@ -141,7 +141,7 @@ impl Debugger {
                 if !crate::machinecode::decode_instruction(&mut buffer, &mut self.instruction).is_ok() {
                     break;
                 }
-                println!("{}{:04X}:{:04X}  {}", termion::clear::CurrentLine, cpu.get_register(Operand::CS), self.instruction.position, self.instruction);
+                println!("{}{:04X}:{:04X}  {:16}    {}", termion::clear::CurrentLine, cpu.get_register(Operand::CS), self.instruction.position, crate::disassembler::BytesAsHexDec::from_instruction(&self.instruction), self.instruction);
                 self.instruction.position += self.instruction.length as u16;
             }
         }
